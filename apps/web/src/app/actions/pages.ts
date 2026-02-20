@@ -3,7 +3,16 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 import type { PageType, PageContent } from '@babybook/shared';
+
+function getAdminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+}
 
 async function getOwnerContext() {
   const supabase = await createClient();
@@ -97,9 +106,13 @@ export async function publishPage(pageId: string) {
 }
 
 export async function deletePage(pageId: string) {
-  const { supabase, familyId } = await getOwnerContext();
+  // Verify ownership with anon client, then use admin client to bypass RLS
+  // for the soft-delete UPDATE (auth.uid() is unreliable inside UPDATE WITH CHECK
+  // when called from Next.js Server Actions via @supabase/ssr).
+  const { familyId } = await getOwnerContext();
+  const admin = getAdminClient();
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('book_pages')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', pageId)
