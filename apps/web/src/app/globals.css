@@ -1,0 +1,191 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Theme: Cotton Candy (default) ─────────────────────────────────────── */
+:root,
+[data-theme="cotton-candy"] {
+  --color-primary: #e879b0;
+  --color-primary-light: #f5b8d8;
+  --color-primary-dark: #c4578a;
+  --color-secondary: #b78ad5;
+  --color-secondary-light: #d9bfed;
+  --color-accent: #ff9bc7;
+  --color-background: #fdf0f7;
+  --color-surface: #ffffff;
+  --color-text-primary: #2d1b2e;
+  --color-text-secondary: #7c4d7e;
+  --color-border: #f0c8e0;
+
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-handwritten: 'Caveat', cursive;
+}
+
+/* ─── Theme: Jungle ──────────────────────────────────────────────────────── */
+[data-theme="jungle"] {
+  --color-primary: #4a8c3f;
+  --color-primary-light: #8dc484;
+  --color-primary-dark: #2d5a25;
+  --color-secondary: #c9a227;
+  --color-secondary-light: #e5cc7a;
+  --color-accent: #f0a830;
+  --color-background: #f2f7f0;
+  --color-surface: #ffffff;
+  --color-text-primary: #1a2e18;
+  --color-text-secondary: #4a6644;
+  --color-border: #c8e0c4;
+
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-handwritten: 'Caveat', cursive;
+}
+
+/* ─── Theme: Ocean ───────────────────────────────────────────────────────── */
+[data-theme="ocean"] {
+  --color-primary: #0891b2;
+  --color-primary-light: #67d3e8;
+  --color-primary-dark: #0e6e89;
+  --color-secondary: #f47c5d;
+  --color-secondary-light: #f9b5a5;
+  --color-accent: #ff8f6b;
+  --color-background: #f0fafd;
+  --color-surface: #ffffff;
+  --color-text-primary: #0d2b38;
+  --color-text-secondary: #2e6a82;
+  --color-border: #b8e8f4;
+
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-handwritten: 'Caveat', cursive;
+}
+
+/* ─── Theme: Autumn Leaves ───────────────────────────────────────────────── */
+[data-theme="autumn-leaves"] {
+  --color-primary: #d97706;
+  --color-primary-light: #fbbf53;
+  --color-primary-dark: #a05607;
+  --color-secondary: #dc2626;
+  --color-secondary-light: #f78080;
+  --color-accent: #f59e0b;
+  --color-background: #fdf8f0;
+  --color-surface: #ffffff;
+  --color-text-primary: #1c1007;
+  --color-text-secondary: #78450a;
+  --color-border: #f5d8a8;
+
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-handwritten: 'Caveat', cursive;
+}
+
+/* ─── Theme: Night Sky ───────────────────────────────────────────────────── */
+[data-theme="night-sky"] {
+  --color-primary: #8b5cf6;
+  --color-primary-light: #c4b5fd;
+  --color-primary-dark: #6d28d9;
+  --color-secondary: #f59e0b;
+  --color-secondary-light: #fde68a;
+  --color-accent: #a78bfa;
+  --color-background: #0f0c1a;
+  --color-surface: #1e1b2e;
+  --color-text-primary: #f0ecff;
+  --color-text-secondary: #a89fd4;
+  --color-border: #2d2850;
+
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-handwritten: 'Caveat', cursive;
+}
+
+/* ─── Base styles ────────────────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  min-height: 100dvh;
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ─── Page book styles ───────────────────────────────────────────────────── */
+.book-page {
+  background: var(--color-surface);
+  border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  position: relative;
+}
+
+/* ─── Textures ───────────────────────────────────────────────────────────── */
+.texture-paper {
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+.texture-lined {
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 27px,
+    rgba(var(--color-border), 0.3) 27px,
+    rgba(var(--color-border), 0.3) 28px
+  );
+  background-size: 100% 28px;
+}
+
+/* ─── Rich text editor ───────────────────────────────────────────────────── */
+.tiptap-content {
+  outline: none;
+  min-height: 200px;
+  font-family: var(--font-body);
+  line-height: 1.7;
+}
+
+.tiptap-content h1,
+.tiptap-content h2,
+.tiptap-content h3 {
+  font-family: var(--font-display);
+  margin: 1em 0 0.5em;
+}
+
+.tiptap-content p {
+  margin: 0.5em 0;
+}
+
+.tiptap-content ul,
+.tiptap-content ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+/* ─── Letter font ────────────────────────────────────────────────────────── */
+.letter-content {
+  font-family: var(--font-handwritten);
+  font-size: 1.2rem;
+  line-height: 1.8;
+}
+
+/* ─── Wax seal ───────────────────────────────────────────────────────────── */
+.wax-seal {
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
