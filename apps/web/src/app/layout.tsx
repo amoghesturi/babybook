@@ -27,6 +27,11 @@ const caveat = Caveat({
 export const metadata: Metadata = {
   title: "Baby Book",
   description: "A beautiful digital baby book for your family",
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
 
 export const dynamic = 'force-dynamic';
