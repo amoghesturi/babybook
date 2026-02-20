@@ -55,41 +55,102 @@ export function MilestonePage({ content, childName, childDob, pageDate }: Props)
   return (
     <div
       className="min-h-[500px] md:min-h-[600px] w-full rounded-page overflow-hidden relative flex flex-col items-center justify-center text-center"
-      style={{ background: 'var(--color-surface)' }}
+      style={{
+        background: `
+          radial-gradient(ellipse 70% 60% at 50% 40%, var(--color-primary-light) 0%, transparent 70%),
+          radial-gradient(ellipse 50% 40% at 20% 80%, var(--color-secondary-light) 0%, transparent 60%),
+          var(--color-surface)
+        `,
+      }}
     >
-      {/* Background decoration */}
-      <div className="absolute inset-0 opacity-5 pointer-events-none"
-        style={{
-          backgroundImage: 'radial-gradient(circle at 25% 25%, var(--color-primary) 2px, transparent 2px), radial-gradient(circle at 75% 75%, var(--color-secondary) 2px, transparent 2px)',
-          backgroundSize: '40px 40px',
-        }} />
+      {/* Sunburst rays */}
+      <svg
+        className="absolute inset-0 pointer-events-none"
+        width="100%" height="100%"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ opacity: 0.05 }}
+      >
+        {Array.from({ length: 24 }).map((_, i) => {
+          const angle = (i * 360) / 24;
+          const rad = (angle * Math.PI) / 180;
+          return (
+            <line
+              key={i}
+              x1="50%" y1="50%"
+              x2={`${50 + 70 * Math.cos(rad)}%`}
+              y2={`${50 + 70 * Math.sin(rad)}%`}
+              stroke="var(--color-primary)"
+              strokeWidth="1.5"
+            />
+          );
+        })}
+      </svg>
 
-      {/* Confetti burst (client-side) */}
+      {/* Confetti burst */}
       {showConfetti && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {Array.from({ length: 20 }).map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-2 h-2 rounded-sm"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: '-8px',
-                background: ['#e879b0', '#b78ad5', '#ff9bc7', '#c9a227', '#4a8c3f'][i % 5],
-                animation: `fall-${i} ${1 + Math.random() * 2}s ease-in forwards`,
-                animationDelay: `${Math.random() * 0.5}s`,
-                transform: `rotate(${Math.random() * 360}deg)`,
-              }}
-            />
-          ))}
+          {Array.from({ length: 28 }).map((_, i) => {
+            const colors = ['var(--color-primary)', 'var(--color-secondary)', 'var(--color-accent)', '#fff'];
+            return (
+              <div
+                key={i}
+                className="absolute"
+                style={{
+                  left: `${10 + Math.random() * 80}%`,
+                  top: '-10px',
+                  width: i % 3 === 0 ? '10px' : '7px',
+                  height: i % 3 === 0 ? '10px' : '7px',
+                  borderRadius: i % 2 === 0 ? '50%' : '2px',
+                  background: colors[i % colors.length],
+                  opacity: 0.85,
+                  animation: `confettiFall ${1.2 + (i % 5) * 0.3}s ease-in forwards`,
+                  animationDelay: `${(i % 8) * 0.07}s`,
+                  transform: `rotate(${(i * 47) % 360}deg)`,
+                }}
+              />
+            );
+          })}
         </div>
       )}
 
+      {/* Certificate outer border */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          inset: '12px',
+          border: '2px solid var(--color-primary)',
+          borderRadius: '8px',
+          opacity: 0.25,
+        }}
+      />
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          inset: '18px',
+          border: '1px solid var(--color-primary)',
+          borderRadius: '6px',
+          opacity: 0.15,
+        }}
+      />
+
+      {/* Corner stars */}
+      {['top-7 left-7', 'top-7 right-7', 'bottom-7 left-7', 'bottom-7 right-7'].map((pos, i) => (
+        <div
+          key={i}
+          className={`absolute ${pos} pointer-events-none`}
+          style={{ color: 'var(--color-secondary)', fontSize: '18px', opacity: 0.45 }}
+        >
+          ★
+        </div>
+      ))}
+
       {/* Category badge */}
       <div
-        className="absolute top-6 left-6 flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide"
+        className="absolute top-6 left-6 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider"
         style={{
-          background: 'var(--color-primary-light)',
-          color: 'var(--color-primary-dark)',
+          background: 'var(--color-primary)',
+          color: 'white',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
         }}
       >
         {catInfo?.emoji} {catInfo?.label}
@@ -98,57 +159,101 @@ export function MilestonePage({ content, childName, childDob, pageDate }: Props)
       {/* Age badge */}
       {ageLabel && (
         <div
-          className="absolute top-6 right-6 px-3 py-1 rounded-full text-xs font-medium"
-          style={{ background: 'var(--color-secondary-light)', color: 'var(--color-primary-dark)' }}
+          className="absolute top-6 right-6 px-3 py-1.5 rounded-full text-xs font-bold"
+          style={{
+            background: 'var(--color-secondary)',
+            color: 'white',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+          }}
         >
           {ageLabel}
         </div>
       )}
 
       {/* Main content */}
-      <div className="relative z-10 px-8 py-12">
-        {/* Big emoji */}
-        <div className="text-7xl mb-6 drop-shadow-sm">{emoji}</div>
-
-        {/* Ribbon badge */}
-        <div className="relative inline-block mb-4">
-          <div
-            className="px-8 py-3 rounded-full font-display font-bold text-2xl md:text-3xl shadow-sm"
-            style={{
-              background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%)',
-              color: 'white',
-            }}
-          >
-            {content.milestone_name}
-          </div>
-          {/* Ribbon tails */}
-          <div className="absolute -bottom-3 left-4 w-0 h-0"
-            style={{ borderLeft: '12px solid transparent', borderRight: '8px solid transparent', borderTop: '14px solid var(--color-primary-dark)' }} />
-          <div className="absolute -bottom-3 right-4 w-0 h-0"
-            style={{ borderLeft: '8px solid transparent', borderRight: '12px solid transparent', borderTop: '14px solid var(--color-primary-dark)' }} />
+      <div className="relative z-10 px-8 py-10 flex flex-col items-center">
+        {/* Medal ring */}
+        <div
+          className="w-28 h-28 rounded-full flex items-center justify-center text-5xl mb-6"
+          style={{
+            background: 'linear-gradient(145deg, var(--color-primary-light), var(--color-secondary-light))',
+            boxShadow: `
+              0 0 0 4px var(--color-surface),
+              0 0 0 7px var(--color-primary-light),
+              0 8px 28px rgba(0,0,0,0.14)
+            `,
+          }}
+        >
+          {emoji}
         </div>
 
-        <p className="text-lg font-handwritten mt-8" style={{ color: 'var(--color-text-secondary)' }}>
+        {/* "Achievement Unlocked" label */}
+        <p
+          className="text-xs font-bold uppercase tracking-[0.3em] mb-3"
+          style={{ color: 'var(--color-text-secondary)' }}
+        >
+          Achievement Unlocked
+        </p>
+
+        {/* Milestone name */}
+        <h2
+          className="font-display font-bold leading-tight"
+          style={{
+            fontSize: 'clamp(1.6rem, 5vw, 2.5rem)',
+            color: 'var(--color-primary-dark)',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          {content.milestone_name}
+        </h2>
+
+        {/* Divider */}
+        <div className="flex items-center gap-3 my-5 w-full max-w-xs">
+          <div className="h-px flex-1" style={{ background: 'var(--color-border)' }} />
+          <span style={{ color: 'var(--color-secondary)', fontSize: '16px' }}>🌟</span>
+          <div className="h-px flex-1" style={{ background: 'var(--color-border)' }} />
+        </div>
+
+        {/* Child name */}
+        <p
+          className="font-handwritten text-2xl"
+          style={{ color: 'var(--color-text-secondary)' }}
+        >
           {childName} did it! 🎉
         </p>
 
-        {/* Optional photo */}
+        {/* Optional photo (polaroid style) */}
         {content.photo_storage_path && (
-          <div className="mt-6 flex justify-center">
+          <div
+            className="mt-6"
+            style={{
+              background: 'white',
+              padding: '7px 7px 28px',
+              boxShadow: '0 6px 20px rgba(0,0,0,0.13)',
+              transform: 'rotate(1.5deg)',
+            }}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={storageUrl(content.photo_storage_path)}
               alt="Milestone photo"
-              className="w-40 h-40 object-cover rounded-2xl shadow-lg rotate-1"
+              style={{ width: '130px', height: '130px', objectFit: 'cover', display: 'block' }}
             />
           </div>
         )}
 
         {/* Notes */}
         {content.notes && (
-          <p className="mt-4 text-sm italic max-w-sm mx-auto" style={{ color: 'var(--color-text-secondary)' }}>
+          <div
+            className="mt-5 max-w-xs px-4 py-3 rounded-xl text-sm italic"
+            style={{
+              background: 'var(--color-background)',
+              color: 'var(--color-text-secondary)',
+              border: '1px solid var(--color-border)',
+            }}
+          >
             &ldquo;{content.notes}&rdquo;
-          </p>
+          </div>
         )}
       </div>
     </div>
