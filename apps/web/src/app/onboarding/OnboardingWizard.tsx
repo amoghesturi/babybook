@@ -2,8 +2,11 @@
 
 import { useState } from 'react';
 import { completeOnboarding } from '@/app/actions/onboarding';
+import { THEMES, DEFAULT_THEME_ID } from '@babybook/shared';
+import type { ThemeId } from '@babybook/shared';
+import { useTheme } from '@/lib/hooks/useTheme';
 
-type Step = 'family' | 'child' | 'cover';
+type Step = 'family' | 'child' | 'cover' | 'theme';
 
 interface Props {
   userId: string;
@@ -20,10 +23,18 @@ export function OnboardingWizard({ userId: _ }: Props) {
   const [gender, setGender] = useState<'male' | 'female' | 'other' | ''>('');
   const [bookTitle, setBookTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
+  const [themeId, setThemeId] = useState<ThemeId>(DEFAULT_THEME_ID);
 
-  const steps: Step[] = ['family', 'child', 'cover'];
+  const { applyTheme } = useTheme();
+
+  const steps: Step[] = ['family', 'child', 'cover', 'theme'];
   const stepIndex = steps.indexOf(step);
   const progress = ((stepIndex + 1) / steps.length) * 100;
+
+  function handleThemeSelect(id: ThemeId) {
+    setThemeId(id);
+    applyTheme(id);
+  }
 
   async function handleFinish() {
     setLoading(true);
@@ -36,6 +47,7 @@ export function OnboardingWizard({ userId: _ }: Props) {
         gender,
         bookTitle,
         subtitle,
+        themeId,
       });
       // completeOnboarding redirects on success — no return value needed
     } catch (err) {
@@ -227,6 +239,67 @@ export function OnboardingWizard({ userId: _ }: Props) {
                 />
               </div>
             </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setStep('child')}
+                className="flex-1 py-3 border rounded-xl font-semibold transition hover:opacity-70"
+                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
+              >
+                ← Back
+              </button>
+              <button
+                onClick={() => setStep('theme')}
+                className="flex-1 py-3 rounded-xl font-semibold text-white transition"
+                style={{ background: 'var(--color-primary)' }}
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 4: Theme ── */}
+        {step === 'theme' && (
+          <div className="space-y-6">
+            <div className="text-center">
+              <div className="text-4xl mb-2">🎨</div>
+              <h2 className="text-2xl font-display font-bold" style={{ color: 'var(--color-text-primary)' }}>
+                Choose a Theme
+              </h2>
+              <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+                Pick the look and feel for your baby book
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2">
+              {THEMES.map((theme) => (
+                <button
+                  key={theme.id}
+                  type="button"
+                  onClick={() => handleThemeSelect(theme.id)}
+                  className="p-4 rounded-2xl border text-left transition hover:shadow-md"
+                  style={{
+                    borderColor: themeId === theme.id ? 'var(--color-primary)' : 'var(--color-border)',
+                    borderWidth: themeId === theme.id ? '2px' : '1px',
+                    background: themeId === theme.id ? 'var(--color-primary-light)' : 'var(--color-surface)',
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-sm" style={{ color: 'var(--color-text-primary)' }}>
+                        {theme.name}
+                      </div>
+                      <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
+                        {theme.description}
+                      </div>
+                    </div>
+                    {themeId === theme.id && (
+                      <span className="text-sm font-bold" style={{ color: 'var(--color-primary)' }}>✓</span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
 
             {error && (
               <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
@@ -236,7 +309,7 @@ export function OnboardingWizard({ userId: _ }: Props) {
 
             <div className="flex gap-3">
               <button
-                onClick={() => setStep('child')}
+                onClick={() => setStep('cover')}
                 disabled={loading}
                 className="flex-1 py-3 border rounded-xl font-semibold transition hover:opacity-70 disabled:opacity-40"
                 style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}

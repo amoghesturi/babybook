@@ -34,7 +34,13 @@ export default async function ManagePage() {
         <h1 className="font-display font-bold text-lg" style={{ color: 'var(--color-primary)' }}>
           Manage Book
         </h1>
-        <div className="w-20" />
+        <a
+          href="/settings"
+          className="text-sm px-3 py-1.5 rounded-lg border transition hover:bg-border/30"
+          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
+        >
+          Settings
+        </a>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">

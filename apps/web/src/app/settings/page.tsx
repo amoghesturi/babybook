@@ -17,17 +17,35 @@ export default async function SettingsPage() {
 
   if (!member || member.role !== 'owner') redirect('/book');
 
-  const { data: family } = await supabase
-    .from('families')
-    .select('id, name, theme_id')
-    .eq('id', member.family_id)
-    .single();
-
-  const { data: members } = await supabase
-    .from('family_members')
-    .select('id, email, role, invite_status')
-    .eq('family_id', member.family_id)
-    .order('created_at');
+  const [
+    { data: family },
+    { data: members },
+    { data: child },
+    { data: cover },
+  ] = await Promise.all([
+    supabase
+      .from('families')
+      .select('id, name, theme_id')
+      .eq('id', member.family_id)
+      .single(),
+    supabase
+      .from('family_members')
+      .select('id, email, role, invite_status')
+      .eq('family_id', member.family_id)
+      .order('created_at'),
+    supabase
+      .from('children')
+      .select('id, name, date_of_birth, gender')
+      .eq('family_id', member.family_id)
+      .single(),
+    supabase
+      .from('book_pages')
+      .select('id, content')
+      .eq('family_id', member.family_id)
+      .eq('page_type', 'cover')
+      .is('deleted_at', null)
+      .single(),
+  ]);
 
   return (
     <div className="min-h-dvh bg-background">
@@ -46,6 +64,8 @@ export default async function SettingsPage() {
           family={family!}
           members={members ?? []}
           currentUserId={user.id}
+          child={child ?? null}
+          cover={cover ?? null}
         />
       </main>
     </div>

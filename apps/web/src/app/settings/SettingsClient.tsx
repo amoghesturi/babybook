@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { THEMES } from '@babybook/shared';
 import type { ThemeId } from '@babybook/shared';
 import { updateTheme, inviteMember } from '@/app/actions/pages';
+import { updateFamilyName, updateChildDetails, updateCoverPage } from '@/app/actions/settings';
 import { useTheme } from '@/lib/hooks/useTheme';
 
 interface Family {
@@ -19,25 +20,107 @@ interface Member {
   invite_status: string;
 }
 
+interface Child {
+  id: string;
+  name: string;
+  date_of_birth: string;
+  gender: string | null;
+}
+
+interface Cover {
+  id: string;
+  content: Record<string, unknown>;
+}
+
 interface Props {
   family: Family;
   members: Member[];
   currentUserId: string;
+  child: Child | null;
+  cover: Cover | null;
 }
 
-export function SettingsClient({ family, members, currentUserId: _ }: Props) {
+export function SettingsClient({ family, members, currentUserId: _, child, cover }: Props) {
   const [currentTheme, setCurrentTheme] = useState<ThemeId>(family.theme_id as ThemeId);
+  const { applyTheme } = useTheme();
+
+  // Family name
+  const [familyName, setFamilyName] = useState(family.name);
+  const [savingFamily, setSavingFamily] = useState(false);
+  const [familyStatus, setFamilyStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+
+  // Child details
+  const [childName, setChildName] = useState(child?.name ?? '');
+  const [childDob, setChildDob] = useState(child?.date_of_birth ?? '');
+  const [childGender, setChildGender] = useState<'male' | 'female' | 'other' | ''>(
+    (child?.gender as 'male' | 'female' | 'other' | '') ?? ''
+  );
+  const [savingChild, setSavingChild] = useState(false);
+  const [childStatus, setChildStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+
+  // Cover / book title
+  const [bookTitle, setBookTitle] = useState(
+    (cover?.content?.book_title as string) ?? ''
+  );
+  const [bookSubtitle, setBookSubtitle] = useState(
+    (cover?.content?.subtitle as string) ?? ''
+  );
+  const [savingCover, setSavingCover] = useState(false);
+  const [coverStatus, setCoverStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+
+  // Invite
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
   const [inviteResult, setInviteResult] = useState<{ url: string } | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [memberList, setMemberList] = useState<Member[]>(members);
-  const { applyTheme } = useTheme();
 
   async function handleThemeChange(themeId: ThemeId) {
     setCurrentTheme(themeId);
     applyTheme(themeId);
     await updateTheme(themeId);
+  }
+
+  async function handleSaveFamily() {
+    if (!familyName.trim()) return;
+    setSavingFamily(true);
+    setFamilyStatus('idle');
+    try {
+      await updateFamilyName(familyName.trim());
+      setFamilyStatus('saved');
+    } catch {
+      setFamilyStatus('error');
+    } finally {
+      setSavingFamily(false);
+    }
+  }
+
+  async function handleSaveChild() {
+    if (!childName.trim() || !childDob) return;
+    setSavingChild(true);
+    setChildStatus('idle');
+    try {
+      await updateChildDetails({ name: childName.trim(), dateOfBirth: childDob, gender: childGender || null });
+      setChildStatus('saved');
+    } catch {
+      setChildStatus('error');
+    } finally {
+      setSavingChild(false);
+    }
+  }
+
+  async function handleSaveCover() {
+    if (!bookTitle.trim()) return;
+    setSavingCover(true);
+    setCoverStatus('idle');
+    try {
+      await updateCoverPage({ bookTitle: bookTitle.trim(), subtitle: bookSubtitle.trim() });
+      setCoverStatus('saved');
+    } catch {
+      setCoverStatus('error');
+    } finally {
+      setSavingCover(false);
+    }
   }
 
   async function handleInvite(e: React.FormEvent) {
@@ -64,6 +147,152 @@ export function SettingsClient({ family, members, currentUserId: _ }: Props) {
 
   return (
     <div className="space-y-8">
+
+      {/* Family name */}
+      <section className="bg-surface rounded-2xl p-6 border" style={{ borderColor: 'var(--color-border)' }}>
+        <h2 className="font-display font-bold text-xl mb-4" style={{ color: 'var(--color-text-primary)' }}>
+          👨‍👩‍👧 Family Name
+        </h2>
+        <div className="space-y-3">
+          <input
+            type="text"
+            value={familyName}
+            onChange={(e) => { setFamilyName(e.target.value); setFamilyStatus('idle'); }}
+            className="w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
+          />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleSaveFamily}
+              disabled={savingFamily || !familyName.trim()}
+              className="px-4 py-2 rounded-xl text-sm font-medium text-white transition disabled:opacity-60"
+              style={{ background: 'var(--color-primary)' }}
+            >
+              {savingFamily ? 'Saving…' : 'Save'}
+            </button>
+            {familyStatus === 'saved' && <span className="text-sm text-green-600">✓ Saved</span>}
+            {familyStatus === 'error' && <span className="text-sm text-red-600">Error saving</span>}
+          </div>
+        </div>
+      </section>
+
+      {/* Child details */}
+      {child && (
+        <section className="bg-surface rounded-2xl p-6 border" style={{ borderColor: 'var(--color-border)' }}>
+          <h2 className="font-display font-bold text-xl mb-4" style={{ color: 'var(--color-text-primary)' }}>
+            👶 Baby Details
+          </h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-primary)' }}>
+                Name
+              </label>
+              <input
+                type="text"
+                value={childName}
+                onChange={(e) => { setChildName(e.target.value); setChildStatus('idle'); }}
+                className="w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-primary)' }}>
+                Date of Birth
+              </label>
+              <input
+                type="date"
+                value={childDob}
+                onChange={(e) => { setChildDob(e.target.value); setChildStatus('idle'); }}
+                max={new Date().toISOString().split('T')[0]}
+                className="w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-primary)' }}>
+                Gender (optional)
+              </label>
+              <div className="flex gap-3">
+                {(['male', 'female', 'other'] as const).map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => { setChildGender(g === childGender ? '' : g); setChildStatus('idle'); }}
+                    className="flex-1 py-2 rounded-xl border text-sm font-medium transition capitalize"
+                    style={{
+                      borderColor: childGender === g ? 'var(--color-primary)' : 'var(--color-border)',
+                      background: childGender === g ? 'var(--color-primary-light)' : undefined,
+                      color: childGender === g ? 'var(--color-primary-dark)' : 'var(--color-text-secondary)',
+                    }}
+                  >
+                    {g === 'male' ? '👦' : g === 'female' ? '👧' : '🌈'} {g}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSaveChild}
+                disabled={savingChild || !childName.trim() || !childDob}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-white transition disabled:opacity-60"
+                style={{ background: 'var(--color-primary)' }}
+              >
+                {savingChild ? 'Saving…' : 'Save'}
+              </button>
+              {childStatus === 'saved' && <span className="text-sm text-green-600">✓ Saved</span>}
+              {childStatus === 'error' && <span className="text-sm text-red-600">Error saving</span>}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Book cover */}
+      {cover && (
+        <section className="bg-surface rounded-2xl p-6 border" style={{ borderColor: 'var(--color-border)' }}>
+          <h2 className="font-display font-bold text-xl mb-4" style={{ color: 'var(--color-text-primary)' }}>
+            📖 Book Cover
+          </h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-primary)' }}>
+                Book Title
+              </label>
+              <input
+                type="text"
+                value={bookTitle}
+                onChange={(e) => { setBookTitle(e.target.value); setCoverStatus('idle'); }}
+                className="w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-primary)' }}>
+                Subtitle (optional)
+              </label>
+              <input
+                type="text"
+                value={bookSubtitle}
+                onChange={(e) => { setBookSubtitle(e.target.value); setCoverStatus('idle'); }}
+                className="w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSaveCover}
+                disabled={savingCover || !bookTitle.trim()}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-white transition disabled:opacity-60"
+                style={{ background: 'var(--color-primary)' }}
+              >
+                {savingCover ? 'Saving…' : 'Save'}
+              </button>
+              {coverStatus === 'saved' && <span className="text-sm text-green-600">✓ Saved</span>}
+              {coverStatus === 'error' && <span className="text-sm text-red-600">Error saving</span>}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Theme */}
       <section className="bg-surface rounded-2xl p-6 border" style={{ borderColor: 'var(--color-border)' }}>
         <h2 className="font-display font-bold text-xl mb-4" style={{ color: 'var(--color-text-primary)' }}>
@@ -187,16 +416,6 @@ export function SettingsClient({ family, members, currentUserId: _ }: Props) {
             </div>
           )}
         </form>
-      </section>
-
-      {/* About */}
-      <section className="bg-surface rounded-2xl p-6 border" style={{ borderColor: 'var(--color-border)' }}>
-        <h2 className="font-display font-bold text-xl mb-2" style={{ color: 'var(--color-text-primary)' }}>
-          📖 {family.name}
-        </h2>
-        <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          Your family's baby book — powered by BabyBook
-        </p>
       </section>
     </div>
   );

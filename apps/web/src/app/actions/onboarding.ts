@@ -20,6 +20,7 @@ interface OnboardingData {
   gender: 'male' | 'female' | 'other' | '';
   bookTitle: string;
   subtitle: string;
+  themeId: string;
 }
 
 export async function completeOnboarding(data: OnboardingData) {
@@ -42,7 +43,7 @@ export async function completeOnboarding(data: OnboardingData) {
   // 1. Create family
   const { data: family, error: familyErr } = await admin
     .from('families')
-    .insert({ name: data.familyName, theme_id: DEFAULT_THEME_ID })
+    .insert({ name: data.familyName, theme_id: data.themeId || DEFAULT_THEME_ID })
     .select()
     .single();
   if (familyErr) throw new Error(familyErr.message);
