@@ -42,7 +42,8 @@ export async function createPage(
   pageType: PageType,
   pageDate: string,
   content: PageContent,
-  templateVariant?: string
+  templateVariant?: string,
+  sectionId?: string
 ) {
   const { supabase, familyId, childId } = await getOwnerContext();
 
@@ -63,6 +64,7 @@ export async function createPage(
       sort_order: count ?? 0,
       status: 'draft',
       content,
+      section_id: sectionId ?? null,
     })
     .select()
     .single();
@@ -124,14 +126,16 @@ export async function deletePage(pageId: string) {
   redirect('/book');
 }
 
-export async function updateSortOrder(pageIds: string[]) {
+export async function updateSortOrder(
+  items: { id: string; sort_order: number; section_id?: string | null }[]
+) {
   const { supabase, familyId } = await getOwnerContext();
 
   await Promise.all(
-    pageIds.map((id, index) =>
+    items.map(({ id, sort_order, section_id }) =>
       supabase
         .from('book_pages')
-        .update({ sort_order: index })
+        .update({ sort_order, ...(section_id !== undefined ? { section_id } : {}) })
         .eq('id', id)
         .eq('family_id', familyId)
     )

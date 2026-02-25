@@ -1,8 +1,15 @@
-import type { PhotoSpreadContent } from '@babybook/shared';
+import type { PhotoSpreadContent, PhotoSpreadVariant, MediaItem } from '@babybook/shared';
 
 interface Props {
   content: PhotoSpreadContent;
   childName: string;
+  variant?: PhotoSpreadVariant;
+}
+
+// Normalize old photo-only rows to the unified MediaItem shape
+function normalizeMedia(content: PhotoSpreadContent): MediaItem[] {
+  if (content.media && content.media.length > 0) return content.media;
+  return content.photos.map((p) => ({ ...p, media_type: 'photo' as const }));
 }
 
 function PhotoCorners() {
@@ -28,33 +35,70 @@ function PhotoCorners() {
   );
 }
 
+function MediaTile({
+  item,
+  alt,
+  className,
+  style,
+}: {
+  item: MediaItem;
+  alt: string;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  if (item.media_type === 'video') {
+    return (
+      <video
+        src={item.public_url ?? item.storage_path}
+        controls
+        playsInline
+        muted
+        className={className}
+        style={{ ...style, background: '#000' }}
+      />
+    );
+  }
+  // eslint-disable-next-line @next/next/no-img-element
+  return (
+    <img
+      src={item.public_url ?? item.storage_path}
+      alt={alt}
+      className={className}
+      style={style}
+    />
+  );
+}
+
 export function PhotoSpreadPage({ content, childName }: Props) {
-  /* ── Single photo ── */
+  const media = normalizeMedia(content);
+
+  /* ── Single photo/video ── */
   if (content.layout === 'single') {
-    const photo = content.photos[0];
+    const item = media[0];
     return (
       <div
         className="min-h-[500px] md:min-h-[600px] w-full rounded-page overflow-hidden relative"
         style={{ background: '#111' }}
       >
-        {photo && (
+        {item && (
           <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={photo.public_url ?? photo.storage_path}
-              alt={photo.caption || childName}
+            <MediaTile
+              item={item}
+              alt={item.caption || childName}
               className="w-full h-full object-cover"
               style={{ minHeight: '500px', display: 'block' }}
             />
-            {/* Vignette */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background:
-                  'radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.42) 100%)',
-              }}
-            />
-            {photo.caption && (
+            {/* Vignette (skip for video) */}
+            {item.media_type === 'photo' && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background:
+                    'radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.42) 100%)',
+                }}
+              />
+            )}
+            {item.caption && (
               <div
                 className="absolute bottom-0 inset-x-0 px-8 py-6"
                 style={{
@@ -63,7 +107,7 @@ export function PhotoSpreadPage({ content, childName }: Props) {
                 }}
               >
                 <p className="text-white font-handwritten text-xl text-center drop-shadow">
-                  {photo.caption}
+                  {item.caption}
                 </p>
               </div>
             )}
@@ -75,8 +119,8 @@ export function PhotoSpreadPage({ content, childName }: Props) {
 
   /* ── Grid layout ── */
   if (content.layout === 'grid') {
-    const photos = content.photos.slice(0, 4);
-    const isTwoCol = photos.length >= 2;
+    const items = media.slice(0, 4);
+    const isTwoCol = items.length >= 2;
 
     return (
       <div
@@ -85,28 +129,27 @@ export function PhotoSpreadPage({ content, childName }: Props) {
           background: '#1a1a1a',
           display: 'grid',
           gridTemplateColumns: isTwoCol ? '1fr 1fr' : '1fr',
-          gridTemplateRows: photos.length <= 2 ? '1fr' : '1fr 1fr',
+          gridTemplateRows: items.length <= 2 ? '1fr' : '1fr 1fr',
           gap: '3px',
           padding: '3px',
         }}
       >
-        {photos.map((photo, i) => (
+        {items.map((item, i) => (
           <div
             key={i}
             className="relative overflow-hidden"
             style={{
-              gridColumn: photos.length === 3 && i === 0 ? '1 / 3' : undefined,
+              gridColumn: items.length === 3 && i === 0 ? '1 / 3' : undefined,
               minHeight: '180px',
             }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={photo.public_url ?? photo.storage_path}
-              alt={photo.caption || `Photo ${i + 1}`}
+            <MediaTile
+              item={item}
+              alt={item.caption || `Item ${i + 1}`}
               className="w-full h-full object-cover"
               style={{ display: 'block', minHeight: '180px' }}
             />
-            {/* Film-strip perforations on top edge of first photo */}
+            {/* Film-strip perforations on top edge of first item */}
             {i === 0 && (
               <div
                 className="absolute top-0 left-0 right-0 flex items-center px-2 gap-2 pointer-events-none"
@@ -121,12 +164,12 @@ export function PhotoSpreadPage({ content, childName }: Props) {
                 ))}
               </div>
             )}
-            {photo.caption && (
+            {item.caption && (
               <div
                 className="absolute bottom-0 inset-x-0 px-3 py-2"
                 style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.58), transparent)' }}
               >
-                <p className="text-white text-xs font-handwritten">{photo.caption}</p>
+                <p className="text-white text-xs font-handwritten">{item.caption}</p>
               </div>
             )}
           </div>
@@ -137,15 +180,17 @@ export function PhotoSpreadPage({ content, childName }: Props) {
 
   /* ── Polaroid layout ── */
   const rotations = [-2.5, 1.5, -1, 2, -1.5, 1];
-  const isSingle = content.photos.length === 1;
+  const isSingle = media.length === 1;
 
   return (
     <div
       className="min-h-[500px] md:min-h-[600px] w-full rounded-page overflow-hidden flex items-center justify-center flex-wrap gap-6 p-8"
       style={{ background: 'var(--color-background)' }}
     >
-      {content.photos.map((photo, i) => {
+      {media.map((item, i) => {
         const rot = rotations[i % rotations.length];
+        // Avoid CSS transforms on video elements (rendering bugs in some browsers)
+        const isVideo = item.media_type === 'video';
 
         return (
           <div
@@ -156,20 +201,19 @@ export function PhotoSpreadPage({ content, childName }: Props) {
               padding: isSingle ? '10px 10px 42px' : '7px 7px 34px',
               width: isSingle ? '260px' : '168px',
               boxShadow: '0 10px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.1)',
-              transform: `rotate(${rot}deg)`,
+              transform: isVideo ? undefined : `rotate(${rot}deg)`,
               cursor: 'default',
             }}
           >
-            {/* Photo with corner marks */}
+            {/* Media with corner marks */}
             <div className="relative overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={photo.public_url ?? photo.storage_path}
-                alt={photo.caption || `Photo ${i + 1}`}
+              <MediaTile
+                item={item}
+                alt={item.caption || `Item ${i + 1}`}
                 className="block w-full object-cover"
                 style={{ height: isSingle ? '238px' : '148px' }}
               />
-              <PhotoCorners />
+              {!isVideo && <PhotoCorners />}
             </div>
 
             {/* Caption / placeholder */}
@@ -177,12 +221,12 @@ export function PhotoSpreadPage({ content, childName }: Props) {
               className="flex items-center justify-center"
               style={{ height: isSingle ? '42px' : '34px', paddingTop: '8px' }}
             >
-              {photo.caption ? (
+              {item.caption ? (
                 <p
                   className="font-handwritten text-center leading-tight"
                   style={{ fontSize: isSingle ? '15px' : '12px', color: '#4a3520' }}
                 >
-                  {photo.caption}
+                  {item.caption}
                 </p>
               ) : (
                 <p

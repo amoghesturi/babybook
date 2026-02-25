@@ -1,4 +1,4 @@
-import type { BookPage } from '@babybook/shared';
+import type { BookPage, CoverVariant, BirthStoryVariant, MilestoneVariant, JournalVariant, LetterVariant, MonthlySummaryVariant } from '@babybook/shared';
 import { CoverPage } from '@/components/templates/CoverPage';
 import { BirthStoryPage } from '@/components/templates/BirthStoryPage';
 import { MilestonePage } from '@/components/templates/MilestonePage';
@@ -15,6 +15,8 @@ interface Props {
 }
 
 export function PageRenderer({ page, childName, childDob, isOwner }: Props) {
+  const variant = page.template_variant ?? 'classic';
+
   switch (page.page_type) {
     case 'cover':
       return (
@@ -22,6 +24,7 @@ export function PageRenderer({ page, childName, childDob, isOwner }: Props) {
           content={page.content as Parameters<typeof CoverPage>[0]['content']}
           childName={childName}
           childDob={childDob}
+          variant={variant as CoverVariant}
         />
       );
 
@@ -30,6 +33,7 @@ export function PageRenderer({ page, childName, childDob, isOwner }: Props) {
         <BirthStoryPage
           content={page.content as Parameters<typeof BirthStoryPage>[0]['content']}
           childName={childName}
+          variant={variant as BirthStoryVariant}
         />
       );
 
@@ -40,6 +44,7 @@ export function PageRenderer({ page, childName, childDob, isOwner }: Props) {
           childName={childName}
           childDob={childDob}
           pageDate={page.page_date}
+          variant={variant as MilestoneVariant}
         />
       );
 
@@ -56,6 +61,7 @@ export function PageRenderer({ page, childName, childDob, isOwner }: Props) {
         <JournalPage
           content={page.content as Parameters<typeof JournalPage>[0]['content']}
           pageDate={page.page_date}
+          variant={variant as JournalVariant}
         />
       );
 
@@ -65,6 +71,7 @@ export function PageRenderer({ page, childName, childDob, isOwner }: Props) {
           content={page.content as Parameters<typeof LetterPage>[0]['content']}
           childName={childName}
           isOwner={isOwner}
+          variant={variant as LetterVariant}
         />
       );
 
@@ -74,6 +81,7 @@ export function PageRenderer({ page, childName, childDob, isOwner }: Props) {
           content={page.content as Parameters<typeof MonthlySummaryPage>[0]['content']}
           childName={childName}
           childDob={childDob}
+          variant={variant as MonthlySummaryVariant}
         />
       );
 

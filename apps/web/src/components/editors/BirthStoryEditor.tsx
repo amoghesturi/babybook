@@ -6,9 +6,11 @@ import { createPage } from '@/app/actions/pages';
 
 interface Props {
   onClose: () => void;
+  templateVariant?: string;
+  sectionId?: string;
 }
 
-export function BirthStoryEditor({ onClose }: Props) {
+export function BirthStoryEditor({ onClose, templateVariant, sectionId }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +43,7 @@ export function BirthStoryEditor({ onClose }: Props) {
         height_cm: parseFloat(form.height_cm),
         hospital: form.hospital || undefined,
         story_text: form.story_text || undefined,
-      });
+      }, templateVariant, sectionId);
       onClose();
       router.push(`/book/${page.id}`);
     } catch (e) {

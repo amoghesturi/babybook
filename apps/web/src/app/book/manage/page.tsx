@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { ManagePages } from '@/components/book/ManagePages';
-import type { BookPage } from '@babybook/shared';
+import type { BookPage, BookSection } from '@babybook/shared';
 
 export default async function ManagePage() {
   const supabase = await createClient();
@@ -17,13 +17,21 @@ export default async function ManagePage() {
 
   if (!member || member.role !== 'owner') redirect('/book');
 
-  const { data: pages } = await supabase
-    .from('book_pages')
-    .select('*')
-    .eq('family_id', member.family_id)
-    .is('deleted_at', null)
-    .order('page_date', { ascending: true })
-    .order('sort_order', { ascending: true });
+  const [{ data: pages }, { data: sections }] = await Promise.all([
+    supabase
+      .from('book_pages')
+      .select('*')
+      .eq('family_id', member.family_id)
+      .is('deleted_at', null)
+      .order('page_date', { ascending: true })
+      .order('sort_order', { ascending: true }),
+
+    supabase
+      .from('book_sections')
+      .select('*')
+      .eq('family_id', member.family_id)
+      .order('sort_order', { ascending: true }),
+  ]);
 
   return (
     <div className="min-h-dvh bg-background">
@@ -44,7 +52,10 @@ export default async function ManagePage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <ManagePages initialPages={(pages ?? []) as BookPage[]} />
+        <ManagePages
+          initialPages={(pages ?? []) as BookPage[]}
+          initialSections={(sections ?? []) as BookSection[]}
+        />
       </main>
     </div>
   );

@@ -62,12 +62,13 @@ export default async function BookPageRoute({ params }: Props) {
     totalPages: pageIds.length,
   };
 
-  // Fetch child info
-  const { data: child } = await supabase
-    .from('children')
-    .select('name, date_of_birth')
-    .eq('id', page.child_id)
-    .single();
+  // Fetch child info and section name in parallel
+  const [{ data: child }, { data: section }] = await Promise.all([
+    supabase.from('children').select('name, date_of_birth').eq('id', page.child_id).single(),
+    page.section_id
+      ? supabase.from('book_sections').select('name').eq('id', page.section_id).single()
+      : Promise.resolve({ data: null }),
+  ]);
 
   return (
     <BookReader
@@ -76,6 +77,7 @@ export default async function BookPageRoute({ params }: Props) {
       isOwner={isOwner}
       childName={child?.name ?? ''}
       childDob={child?.date_of_birth ?? ''}
+      sectionName={section?.name ?? null}
     />
   );
 }

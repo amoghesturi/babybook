@@ -1,9 +1,10 @@
-import type { JournalContent } from '@babybook/shared';
+import type { JournalContent, JournalVariant } from '@babybook/shared';
 import { storageUrl } from '@/lib/storageUrl';
 
 interface Props {
   content: JournalContent;
   pageDate: string;
+  variant?: JournalVariant;
 }
 
 const MOODS: Record<string, { emoji: string; label: string; color: string }> = {
@@ -44,7 +45,196 @@ function renderTiptap(content: Record<string, unknown>): string {
   return extractText(content);
 }
 
-export function JournalPage({ content, pageDate }: Props) {
+// ── Clean variant ─────────────────────────────────────────────────────────────
+function JournalClean({ content, pageDate }: Omit<Props, 'variant'>) {
+  const textContent = renderTiptap(content.content_tiptap as Record<string, unknown>);
+  const moodInfo = content.mood ? (MOODS[content.mood] ?? null) : null;
+  const dateInfo = formatDate(pageDate);
+
+  return (
+    <div
+      className="min-h-[500px] md:min-h-[600px] w-full rounded-page overflow-hidden flex flex-col"
+      style={{ background: 'white' }}
+    >
+      <div
+        className="px-8 pt-8 pb-5 flex flex-col gap-2"
+        style={{ borderBottom: '1px solid var(--color-border)' }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <h2
+              className="font-display font-bold leading-tight"
+              style={{ fontSize: 'clamp(1.2rem, 3.5vw, 1.8rem)', color: 'var(--color-text-primary)' }}
+            >
+              {content.title}
+            </h2>
+            <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+              {dateInfo.weekday}, {dateInfo.date}
+            </p>
+          </div>
+          {moodInfo && (
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold flex-shrink-0"
+              style={{
+                background: `${moodInfo.color}15`,
+                color: moodInfo.color,
+                border: `1px solid ${moodInfo.color}30`,
+              }}
+            >
+              <span>{moodInfo.emoji}</span>
+              <span>{moodInfo.label}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {content.header_photo_storage_path && (
+        <div className="px-8 pt-5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={storageUrl(content.header_photo_storage_path)}
+            alt="Journal header"
+            className="w-full rounded-xl object-cover"
+            style={{ height: '130px' }}
+          />
+        </div>
+      )}
+
+      {content.voice_note_storage_path && (
+        <div className="px-8 pt-4">
+          <audio controls src={storageUrl(content.voice_note_storage_path)} className="w-full" />
+        </div>
+      )}
+
+      <div className="flex-1 px-8 py-6">
+        <p
+          className="font-handwritten text-lg leading-relaxed whitespace-pre-wrap"
+          style={{ color: 'var(--color-text-primary)' }}
+        >
+          {textContent || content.title}
+        </p>
+      </div>
+
+      {content.tags && content.tags.length > 0 && (
+        <div
+          className="px-8 pb-6 flex flex-wrap gap-2"
+          style={{ borderTop: '1px solid var(--color-border)', paddingTop: '12px' }}
+        >
+          {content.tags.map((tag) => (
+            <span
+              key={tag}
+              className="font-handwritten text-sm px-3 py-0.5 rounded-full"
+              style={{
+                background: 'var(--color-background)',
+                color: 'var(--color-primary)',
+                border: '1.5px solid var(--color-primary-light)',
+              }}
+            >
+              #{tag}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Vibrant variant ───────────────────────────────────────────────────────────
+function JournalVibrant({ content, pageDate }: Omit<Props, 'variant'>) {
+  const textContent = renderTiptap(content.content_tiptap as Record<string, unknown>);
+  const moodInfo = content.mood ? (MOODS[content.mood] ?? null) : null;
+  const dateInfo = formatDate(pageDate);
+
+  return (
+    <div
+      className="min-h-[500px] md:min-h-[600px] w-full rounded-page overflow-hidden flex flex-col"
+      style={{ background: 'var(--color-surface)' }}
+    >
+      {/* Bold gradient header band */}
+      <div
+        className="relative px-8 pt-8 pb-6 flex items-center justify-between gap-4"
+        style={{
+          background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%)',
+        }}
+      >
+        <div className="flex-1">
+          <h2
+            className="font-display font-bold leading-tight text-white"
+            style={{ fontSize: 'clamp(1.2rem, 3.5vw, 1.8rem)' }}
+          >
+            {content.title}
+          </h2>
+          <p className="text-sm mt-1 text-white/75">
+            {dateInfo.weekday} &middot; {dateInfo.date}
+          </p>
+        </div>
+        {moodInfo && (
+          <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
+            <div className="text-3xl">{moodInfo.emoji}</div>
+            <div className="text-xs font-semibold text-white/80">{moodInfo.label}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Body with left accent bar */}
+      <div className="flex flex-1 overflow-hidden">
+        <div
+          className="flex-shrink-0"
+          style={{ width: '4px', background: 'var(--color-primary)', opacity: 0.7 }}
+        />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {content.header_photo_storage_path && (
+            <div className="px-8 pt-5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={storageUrl(content.header_photo_storage_path)}
+                alt="Journal header"
+                className="w-full rounded-xl object-cover"
+                style={{ height: '120px' }}
+              />
+            </div>
+          )}
+          {content.voice_note_storage_path && (
+            <div className="px-8 pt-4">
+              <audio controls src={storageUrl(content.voice_note_storage_path)} className="w-full" />
+            </div>
+          )}
+          <div className="flex-1 px-8 py-5">
+            <p
+              className="font-handwritten text-lg leading-relaxed whitespace-pre-wrap"
+              style={{ color: 'var(--color-text-primary)' }}
+            >
+              {textContent || content.title}
+            </p>
+          </div>
+          {content.tags && content.tags.length > 0 && (
+            <div
+              className="px-8 pb-5 flex flex-wrap gap-2"
+              style={{ borderTop: '1px solid var(--color-border)', paddingTop: '12px' }}
+            >
+              {content.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="font-handwritten text-sm px-3 py-0.5 rounded-full"
+                  style={{
+                    background: 'var(--color-primary-light)',
+                    color: 'var(--color-primary)',
+                    border: '1.5px solid var(--color-primary-light)',
+                  }}
+                >
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Classic variant (original) ────────────────────────────────────────────────
+function JournalClassic({ content, pageDate }: Omit<Props, 'variant'>) {
   const textContent = renderTiptap(content.content_tiptap as Record<string, unknown>);
   const moodInfo = content.mood ? (MOODS[content.mood] ?? null) : null;
   const dateInfo = formatDate(pageDate);
@@ -54,7 +244,7 @@ export function JournalPage({ content, pageDate }: Props) {
       className="min-h-[500px] md:min-h-[600px] w-full rounded-page overflow-hidden relative flex"
       style={{ background: 'var(--color-surface)' }}
     >
-      {/* ── Left spine: binder holes ── */}
+      {/* Left spine: binder holes */}
       <div
         className="flex-shrink-0 flex flex-col items-center justify-evenly py-8"
         style={{
@@ -78,7 +268,6 @@ export function JournalPage({ content, pageDate }: Props) {
         ))}
       </div>
 
-      {/* ── Main page ── */}
       <div className="flex-1 relative overflow-hidden flex flex-col">
         {/* Ruled lines */}
         <div
@@ -97,12 +286,11 @@ export function JournalPage({ content, pageDate }: Props) {
           style={{ left: '52px', width: '1.5px', background: '#ef4444', opacity: 0.25 }}
         />
 
-        {/* ── Header strip ── */}
+        {/* Header strip */}
         <div
           className="relative z-10 flex items-stretch gap-0"
           style={{ borderBottom: '1.5px solid var(--color-border)', minHeight: '72px' }}
         >
-          {/* Date box */}
           <div
             className="flex flex-col items-center justify-center flex-shrink-0 px-3"
             style={{
@@ -111,16 +299,10 @@ export function JournalPage({ content, pageDate }: Props) {
               color: 'white',
             }}
           >
-            <span className="font-bold leading-none" style={{ fontSize: '1.7rem' }}>
-              {dateInfo.day}
-            </span>
-            <span className="text-xs font-semibold tracking-wider uppercase opacity-90">
-              {dateInfo.month}
-            </span>
+            <span className="font-bold leading-none" style={{ fontSize: '1.7rem' }}>{dateInfo.day}</span>
+            <span className="text-xs font-semibold tracking-wider uppercase opacity-90">{dateInfo.month}</span>
             <span className="text-xs opacity-75">{dateInfo.year}</span>
           </div>
-
-          {/* Title + weekday */}
           <div className="flex-1 flex flex-col justify-center px-4 py-2">
             <h2
               className="font-display font-bold leading-tight"
@@ -128,12 +310,8 @@ export function JournalPage({ content, pageDate }: Props) {
             >
               {content.title}
             </h2>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
-              {dateInfo.weekday}
-            </p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>{dateInfo.weekday}</p>
           </div>
-
-          {/* Mood badge */}
           {moodInfo && (
             <div
               className="flex flex-col items-center justify-center px-4 flex-shrink-0 gap-1"
@@ -154,7 +332,6 @@ export function JournalPage({ content, pageDate }: Props) {
           )}
         </div>
 
-        {/* ── Header photo ── */}
         {content.header_photo_storage_path && (
           <div className="relative z-10 px-14 pt-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -167,7 +344,12 @@ export function JournalPage({ content, pageDate }: Props) {
           </div>
         )}
 
-        {/* ── Journal body ── */}
+        {content.voice_note_storage_path && (
+          <div className="relative z-10 px-14 pt-4">
+            <audio controls src={storageUrl(content.voice_note_storage_path)} className="w-full" />
+          </div>
+        )}
+
         <div className="relative z-10 flex-1 px-14 py-5">
           <p
             className="font-handwritten text-lg leading-[28px] whitespace-pre-wrap"
@@ -177,7 +359,6 @@ export function JournalPage({ content, pageDate }: Props) {
           </p>
         </div>
 
-        {/* ── Tags ── */}
         {content.tags && content.tags.length > 0 && (
           <div
             className="relative z-10 px-14 pb-5 flex flex-wrap gap-2"
@@ -201,4 +382,10 @@ export function JournalPage({ content, pageDate }: Props) {
       </div>
     </div>
   );
+}
+
+export function JournalPage({ content, pageDate, variant = 'classic' }: Props) {
+  if (variant === 'clean') return <JournalClean content={content} pageDate={pageDate} />;
+  if (variant === 'vibrant') return <JournalVibrant content={content} pageDate={pageDate} />;
+  return <JournalClassic content={content} pageDate={pageDate} />;
 }

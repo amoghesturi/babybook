@@ -17,6 +17,36 @@ export type MediaType = 'photo' | 'audio' | 'video';
 
 export type PhotoLayout = 'single' | 'grid' | 'polaroid';
 
+// ─── Template variant types ──────────────────────────────────────────────────
+
+export type CoverVariant          = 'classic' | 'minimal' | 'watercolor';
+export type BirthStoryVariant     = 'classic' | 'announcement' | 'scrapbook';
+export type MilestoneVariant      = 'classic' | 'badge' | 'certificate';
+export type JournalVariant        = 'classic' | 'clean' | 'vibrant';
+export type LetterVariant         = 'classic' | 'modern' | 'postcard';
+export type MonthlySummaryVariant = 'classic' | 'infographic' | 'clean';
+export type PhotoSpreadVariant    = 'single' | 'grid' | 'polaroid';
+
+export type TemplateVariant =
+  | CoverVariant
+  | BirthStoryVariant
+  | MilestoneVariant
+  | JournalVariant
+  | LetterVariant
+  | MonthlySummaryVariant
+  | PhotoSpreadVariant;
+
+// ─── Section types ───────────────────────────────────────────────────────────
+
+export type SectionType =
+  | 'pregnancy'
+  | 'birth'
+  | 'newborn_0_3'
+  | 'first_6_months'
+  | 'second_6_months'
+  | 'toddler'
+  | 'custom';
+
 // ─── Content shapes (JSONB in DB) ──────────────────────────────────────────
 
 export interface CoverContent {
@@ -41,6 +71,7 @@ export interface MilestoneContent {
   achieved_at: string; // ISO date string
   notes?: string;
   photo_storage_path?: string;
+  video_storage_path?: string;
 }
 
 export interface PhotoItem {
@@ -49,9 +80,17 @@ export interface PhotoItem {
   public_url?: string;
 }
 
+export interface MediaItem {
+  storage_path: string;
+  caption?: string;
+  public_url?: string;
+  media_type: 'photo' | 'video';
+}
+
 export interface PhotoSpreadContent {
   layout: PhotoLayout;
-  photos: PhotoItem[];
+  photos: PhotoItem[];   // kept for backward compat with existing rows
+  media?: MediaItem[];   // used when videos are included
 }
 
 // Tiptap JSON content type (simplified)
@@ -63,6 +102,8 @@ export interface JournalContent {
   mood?: string;
   tags?: string[];
   header_photo_storage_path?: string;
+  voice_note_storage_path?: string;
+  voice_note_duration_s?: number;
 }
 
 export interface LetterContent {
@@ -75,6 +116,7 @@ export interface MonthlySummaryContent {
   year_month: string; // YYYY-MM
   weight_kg?: number;
   height_cm?: number;
+  head_circumference_cm?: number;
   notes?: string;
   highlight_page_ids?: string[];
 }
@@ -87,6 +129,18 @@ export type PageContent =
   | JournalContent
   | LetterContent
   | MonthlySummaryContent;
+
+// ─── Growth chart ────────────────────────────────────────────────────────────
+
+export interface GrowthDataPoint {
+  age_months: number;
+  date: string;
+  weight_kg?: number;
+  height_cm?: number;
+  head_circumference_cm?: number;
+  source: 'birth_story' | 'monthly_summary';
+  page_id: string;
+}
 
 // ─── Database row types ─────────────────────────────────────────────────────
 
@@ -123,14 +177,25 @@ export interface BookPage {
   family_id: string;
   child_id: string;
   page_type: PageType;
-  template_variant?: string;
+  template_variant?: TemplateVariant | null;
   page_date: string;
   sort_order: number;
   status: PageStatus;
   content: PageContent;
+  section_id?: string | null;
   deleted_at?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface BookSection {
+  id: string;
+  family_id: string;
+  child_id: string;
+  name: string;
+  section_type: SectionType;
+  sort_order: number;
+  created_at: string;
 }
 
 export interface Media {
@@ -177,4 +242,5 @@ export interface NavigationInfo {
   nextPageId: string | null;
   currentIndex: number;
   totalPages: number;
+  currentSectionName?: string;
 }

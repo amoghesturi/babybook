@@ -1,16 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import { createPage } from '@/app/actions/pages';
+import { uploadMediaFile, validateMediaFile } from '@/lib/uploadMedia';
 import { MILESTONE_TYPES, MILESTONE_CATEGORIES } from '@babybook/shared';
 import type { MilestoneCategory } from '@babybook/shared';
 
 interface Props {
   onClose: () => void;
+  templateVariant?: string;
+  sectionId?: string;
 }
 
-export function MilestoneEditor({ onClose }: Props) {
+export function MilestoneEditor({ onClose, templateVariant, sectionId }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +29,13 @@ export function MilestoneEditor({ onClose }: Props) {
     notes: '',
   });
 
+  // Video state
+  const [videoPath, setVideoPath] = useState<string | null>(null);
+  const [videoLocalUrl, setVideoLocalUrl] = useState<string | null>(null);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const supabase = createClient();
+
   function set(field: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
   }
@@ -37,6 +48,41 @@ export function MilestoneEditor({ onClose }: Props) {
   const filteredMilestones = selectedCategory === 'all'
     ? MILESTONE_TYPES
     : MILESTONE_TYPES.filter((m) => m.category === selectedCategory);
+
+  async function handleVideoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validation = validateMediaFile(file);
+    if (!validation.valid) { setError(validation.error ?? 'Invalid file'); return; }
+
+    setUploadingVideo(true);
+    setError(null);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      const { data: member } = await supabase
+        .from('family_members').select('family_id').eq('user_id', user.id).single();
+      if (!member) throw new Error('No family found');
+
+      const localUrl = URL.createObjectURL(file);
+      setVideoLocalUrl(localUrl);
+
+      const { storage_path } = await uploadMediaFile(supabase, file, member.family_id, { compress: false });
+      setVideoPath(storage_path);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Video upload failed');
+    } finally {
+      setUploadingVideo(false);
+      if (videoInputRef.current) videoInputRef.current.value = '';
+    }
+  }
+
+  function removeVideo() {
+    if (videoLocalUrl) URL.revokeObjectURL(videoLocalUrl);
+    setVideoPath(null);
+    setVideoLocalUrl(null);
+  }
 
   async function handleSave() {
     const milestoneName = isCustom ? customName : form.milestone_name;
@@ -52,7 +98,8 @@ export function MilestoneEditor({ onClose }: Props) {
         category: form.category,
         achieved_at: form.achieved_at,
         notes: form.notes || undefined,
-      });
+        video_storage_path: videoPath ?? undefined,
+      }, templateVariant, sectionId);
       onClose();
       router.push(`/book/${page.id}`);
     } catch (e) {
@@ -189,6 +236,55 @@ export function MilestoneEditor({ onClose }: Props) {
         />
       </div>
 
+      {/* Video clip */}
+      <div>
+        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>
+          Video Clip (optional)
+        </label>
+        {videoPath ? (
+          <div
+            className="flex items-center gap-3 p-3 rounded-xl border"
+            style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
+          >
+            <video
+              src={videoLocalUrl ?? undefined}
+              className="w-20 h-14 object-cover rounded-lg bg-black flex-shrink-0"
+              muted
+              playsInline
+            />
+            <span className="flex-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+              Video attached
+            </span>
+            <button
+              onClick={removeVideo}
+              className="text-xs flex-shrink-0"
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
+              ✕ Remove
+            </button>
+          </div>
+        ) : (
+          <>
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept="video/mp4,video/webm"
+              className="hidden"
+              onChange={handleVideoChange}
+            />
+            <button
+              onClick={() => videoInputRef.current?.click()}
+              disabled={uploadingVideo}
+              className="w-full py-3 border-2 border-dashed rounded-xl text-sm transition disabled:opacity-60"
+              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
+            >
+              {uploadingVideo ? '⏳ Uploading…' : '🎥 Attach Video Clip'}
+              <div className="text-xs mt-0.5 opacity-60">MP4 or WebM · max 50 MB</div>
+            </button>
+          </>
+        )}
+      </div>
+
       {error && (
         <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</div>
       )}
@@ -199,7 +295,7 @@ export function MilestoneEditor({ onClose }: Props) {
           style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}>
           Cancel
         </button>
-        <button onClick={handleSave} disabled={saving}
+        <button onClick={handleSave} disabled={saving || uploadingVideo}
           className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition disabled:opacity-60"
           style={{ background: 'var(--color-primary)' }}>
           {saving ? 'Saving…' : 'Save as Draft'}

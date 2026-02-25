@@ -1,13 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import { createPage } from '@/app/actions/pages';
+import { uploadMediaFile } from '@/lib/uploadMedia';
 import { TiptapEditor } from './TiptapEditor';
 import type { JSONContent } from '@tiptap/core';
 
 interface Props {
   onClose: () => void;
+  templateVariant?: string;
+  sectionId?: string;
 }
 
 const MOODS = [
@@ -20,7 +24,7 @@ const MOODS = [
   { id: 'peaceful', emoji: '😌', label: 'Peaceful' },
 ];
 
-export function JournalEditor({ onClose }: Props) {
+export function JournalEditor({ onClose, templateVariant, sectionId }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +38,23 @@ export function JournalEditor({ onClose }: Props) {
     pageDate: new Date().toISOString().split('T')[0],
   });
 
+  // Voice note state
+  const [voiceNotePath, setVoiceNotePath] = useState<string | null>(null);
+  const [voiceNoteLocalUrl, setVoiceNoteLocalUrl] = useState<string | null>(null);
+  const [voiceNoteDuration, setVoiceNoteDuration] = useState<number | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [uploadingVoice, setUploadingVoice] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const audioFileInputRef = useRef<HTMLInputElement>(null);
+  const supabase = createClient();
+
+  useEffect(() => {
+    return () => {
+      if (voiceNoteLocalUrl) URL.revokeObjectURL(voiceNoteLocalUrl);
+    };
+  }, [voiceNoteLocalUrl]);
+
   function set<K extends keyof typeof form>(field: K, value: typeof form[K]) {
     setForm((f) => ({ ...f, [field]: value }));
   }
@@ -44,6 +65,85 @@ export function JournalEditor({ onClose }: Props) {
       set('tags', [...form.tags, tag]);
     }
     setTagInput('');
+  }
+
+  async function getFamilyId(): Promise<string> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+    const { data: member } = await supabase
+      .from('family_members')
+      .select('family_id')
+      .eq('user_id', user.id)
+      .single();
+    if (!member) throw new Error('No family found');
+    return member.family_id;
+  }
+
+  async function startRecording() {
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : 'audio/mp4';
+
+      const recorder = new MediaRecorder(stream, { mimeType });
+      chunksRef.current = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksRef.current, { type: mimeType });
+        const ext = mimeType.includes('webm') ? 'webm' : 'mp4';
+        const file = new File([blob], `voice-note.${ext}`, { type: mimeType });
+        await uploadVoiceNote(file);
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setRecording(true);
+    } catch {
+      setError('Microphone access denied or not available.');
+    }
+  }
+
+  function stopRecording() {
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+    setUploadingVoice(true);
+  }
+
+  async function uploadVoiceNote(file: File) {
+    try {
+      const familyId = await getFamilyId();
+      const localUrl = URL.createObjectURL(file);
+      setVoiceNoteLocalUrl(localUrl);
+
+      // Get duration via Audio API
+      const audio = new Audio(localUrl);
+      audio.onloadedmetadata = () => setVoiceNoteDuration(Math.round(audio.duration));
+
+      const { storage_path } = await uploadMediaFile(supabase, file, familyId, { compress: false });
+      setVoiceNotePath(storage_path);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Voice upload failed');
+    } finally {
+      setUploadingVoice(false);
+    }
+  }
+
+  async function handleAudioFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingVoice(true);
+    setError(null);
+    await uploadVoiceNote(file);
+    if (audioFileInputRef.current) audioFileInputRef.current.value = '';
+  }
+
+  function removeVoiceNote() {
+    if (voiceNoteLocalUrl) URL.revokeObjectURL(voiceNoteLocalUrl);
+    setVoiceNotePath(null);
+    setVoiceNoteLocalUrl(null);
+    setVoiceNoteDuration(null);
   }
 
   async function handleSave() {
@@ -59,7 +159,9 @@ export function JournalEditor({ onClose }: Props) {
         content_tiptap: content,
         mood: form.mood || undefined,
         tags: form.tags.length ? form.tags : undefined,
-      });
+        voice_note_storage_path: voiceNotePath ?? undefined,
+        voice_note_duration_s: voiceNoteDuration ?? undefined,
+      }, templateVariant, sectionId);
       onClose();
       router.push(`/book/${page.id}`);
     } catch (e) {
@@ -119,6 +221,70 @@ export function JournalEditor({ onClose }: Props) {
           placeholder="Write about this moment…"
           minHeight="150px"
         />
+      </div>
+
+      {/* Voice note */}
+      <div>
+        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>
+          Voice Note
+        </label>
+
+        {voiceNotePath ? (
+          <div
+            className="flex items-center gap-3 p-3 rounded-xl border"
+            style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
+          >
+            <span className="text-xl">🎙</span>
+            <audio
+              controls
+              src={voiceNoteLocalUrl ?? undefined}
+              className="flex-1 h-8"
+              style={{ minWidth: 0 }}
+            />
+            {voiceNoteDuration && (
+              <span className="text-xs flex-shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
+                {Math.floor(voiceNoteDuration / 60)}:{String(voiceNoteDuration % 60).padStart(2, '0')}
+              </span>
+            )}
+            <button
+              onClick={removeVoiceNote}
+              className="text-xs flex-shrink-0"
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
+              ✕
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <button
+              onClick={recording ? stopRecording : startRecording}
+              disabled={uploadingVoice}
+              className="flex-1 py-2 rounded-xl border text-sm font-medium transition"
+              style={{
+                borderColor: recording ? '#ef4444' : 'var(--color-border)',
+                background: recording ? '#fef2f2' : undefined,
+                color: recording ? '#ef4444' : 'var(--color-text-secondary)',
+              }}
+            >
+              {recording ? '⏹ Stop Recording' : '🎙 Record'}
+            </button>
+            <button
+              onClick={() => audioFileInputRef.current?.click()}
+              disabled={recording || uploadingVoice}
+              className="flex-1 py-2 rounded-xl border text-sm font-medium transition"
+              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
+            >
+              {uploadingVoice ? '⏳ Uploading…' : '📎 Upload Audio'}
+            </button>
+            <input
+              ref={audioFileInputRef}
+              type="file"
+              accept="audio/mpeg,audio/mp4,audio/webm,audio/ogg"
+              className="hidden"
+              onChange={handleAudioFileChange}
+            />
+          </div>
+        )}
       </div>
 
       {/* Tags */}
@@ -181,7 +347,7 @@ export function JournalEditor({ onClose }: Props) {
           style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}>
           Cancel
         </button>
-        <button onClick={handleSave} disabled={saving}
+        <button onClick={handleSave} disabled={saving || recording || uploadingVoice}
           className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition disabled:opacity-60"
           style={{ background: 'var(--color-primary)' }}>
           {saving ? 'Saving…' : 'Save as Draft'}

@@ -15,9 +15,10 @@ interface Props {
   isOwner: boolean;
   childName: string;
   childDob: string;
+  sectionName?: string | null;
 }
 
-export function BookReader({ page, nav, isOwner, childName, childDob }: Props) {
+export function BookReader({ page, nav, isOwner, childName, childDob, sectionName }: Props) {
   const router = useRouter();
   const [direction, setDirection] = useState<'next' | 'prev'>('next');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -73,15 +74,29 @@ export function BookReader({ page, nav, isOwner, childName, childDob }: Props) {
     <div className="min-h-dvh bg-background flex flex-col">
       {/* Top bar */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface/80 backdrop-blur-sm sticky top-0 z-10">
-        <span className="font-display text-lg font-semibold text-primary truncate">
-          {childName ? `${childName}'s Baby Book` : 'Baby Book'}
-        </span>
+        <div className="flex flex-col min-w-0">
+          <span className="font-display text-lg font-semibold text-primary truncate leading-tight">
+            {childName ? `${childName}'s Baby Book` : 'Baby Book'}
+          </span>
+          {sectionName && (
+            <span className="text-xs truncate leading-tight" style={{ color: 'var(--color-text-secondary)' }}>
+              {sectionName}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {page.status === 'draft' && (
             <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium animate-pulse">
               Draft
             </span>
           )}
+          <a
+            href="/book/growth"
+            className="p-2 rounded-lg hover:bg-border/40 text-text-secondary hover:text-text-primary transition text-sm"
+            title="Growth Chart"
+          >
+            📈
+          </a>
           {isOwner && (
             <a
               href="/book/manage"

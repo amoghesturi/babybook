@@ -8,9 +8,11 @@ import type { JSONContent } from '@tiptap/core';
 
 interface Props {
   onClose: () => void;
+  templateVariant?: string;
+  sectionId?: string;
 }
 
-export function LetterEditor({ onClose }: Props) {
+export function LetterEditor({ onClose, templateVariant, sectionId }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +40,7 @@ export function LetterEditor({ onClose }: Props) {
         author_name: form.author_name,
         content_tiptap: content,
         reveal_date: form.reveal_date || undefined,
-      });
+      }, templateVariant, sectionId);
       onClose();
       router.push(`/book/${page.id}`);
     } catch (e) {

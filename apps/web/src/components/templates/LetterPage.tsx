@@ -1,11 +1,12 @@
 'use client';
 
-import type { LetterContent } from '@babybook/shared';
+import type { LetterContent, LetterVariant } from '@babybook/shared';
 
 interface Props {
   content: LetterContent;
   childName: string;
   isOwner: boolean;
+  variant?: LetterVariant;
 }
 
 function isLocked(revealDate?: string): boolean {
@@ -34,7 +35,191 @@ function renderTiptap(content: Record<string, unknown>): string {
   return extractText(content);
 }
 
-export function LetterPage({ content, childName, isOwner }: Props) {
+// ── Modern variant ────────────────────────────────────────────────────────────
+function LetterModern({ content, childName, isOwner }: Omit<Props, 'variant'>) {
+  const locked = isLocked(content.reveal_date) && !isOwner;
+  const textContent = renderTiptap(content.content_tiptap as Record<string, unknown>);
+
+  return (
+    <div
+      className="min-h-[500px] md:min-h-[600px] w-full rounded-page overflow-hidden relative flex flex-col"
+      style={{ background: 'white', border: '1px solid var(--color-border)' }}
+    >
+      {/* Owner preview banner */}
+      {isOwner && content.reveal_date && isLocked(content.reveal_date) && (
+        <div
+          className="relative z-10 mx-4 mt-3 mb-0 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2"
+          style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}
+        >
+          ⏰ Locked until {formatRevealDate(content.reveal_date)} for viewers
+        </div>
+      )}
+
+      {/* Header */}
+      <div
+        className="relative z-10 px-10 pt-8 pb-5 flex flex-col items-center text-center"
+        style={{ borderBottom: '1px solid var(--color-border)' }}
+      >
+        <div className="text-3xl mb-2">{locked ? '🔒' : '✉️'}</div>
+        <p
+          className="font-display font-bold"
+          style={{ fontSize: 'clamp(1.4rem, 4vw, 2rem)', color: 'var(--color-text-primary)' }}
+        >
+          Dear {childName},
+        </p>
+        <p className="text-xs mt-1.5 font-medium uppercase tracking-[0.22em]" style={{ color: 'var(--color-text-secondary)' }}>
+          A letter from {content.author_name}
+        </p>
+      </div>
+
+      {/* Locked state */}
+      {locked ? (
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-8 text-center gap-6 py-8">
+          <div
+            className="w-20 h-20 rounded-2xl flex items-center justify-center"
+            style={{ background: 'var(--color-primary-light)', border: '2px solid var(--color-primary)' }}
+          >
+            <span className="text-4xl">🔒</span>
+          </div>
+          <div>
+            <p className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+              This letter unlocks on
+            </p>
+            <p className="font-display font-bold text-xl mt-0.5" style={{ color: 'var(--color-primary-dark)' }}>
+              {content.reveal_date ? formatRevealDate(content.reveal_date) : ''}
+            </p>
+          </div>
+          <p
+            className="font-handwritten text-lg max-w-xs opacity-40 select-none pointer-events-none"
+            style={{ filter: 'blur(5px)', color: 'var(--color-text-primary)' }}
+          >
+            {textContent.slice(0, 180) || 'This letter is waiting for you, full of love and memories…'}
+          </p>
+        </div>
+      ) : (
+        <div className="relative z-10 flex-1 px-12 py-6 flex flex-col">
+          <p
+            className="font-handwritten text-lg leading-[1.85] whitespace-pre-wrap flex-1"
+            style={{ color: 'var(--color-text-primary)' }}
+          >
+            {textContent}
+          </p>
+          <div className="mt-6 pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
+            <p className="font-handwritten text-base" style={{ color: 'var(--color-text-secondary)' }}>
+              With all my love,
+            </p>
+            <p className="font-display font-bold text-2xl mt-0.5" style={{ color: 'var(--color-text-primary)' }}>
+              {content.author_name}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Postcard variant ──────────────────────────────────────────────────────────
+function LetterPostcard({ content, childName, isOwner }: Omit<Props, 'variant'>) {
+  const locked = isLocked(content.reveal_date) && !isOwner;
+  const textContent = renderTiptap(content.content_tiptap as Record<string, unknown>);
+
+  return (
+    <div
+      className="min-h-[500px] md:min-h-[600px] w-full rounded-page overflow-hidden flex"
+      style={{ background: 'var(--color-surface)' }}
+    >
+      {/* Left panel — 40% colored */}
+      <div
+        className="flex flex-col items-center justify-center gap-4 px-5 py-8 text-white text-center flex-shrink-0"
+        style={{
+          width: '40%',
+          background: 'linear-gradient(160deg, var(--color-primary) 0%, var(--color-secondary) 100%)',
+        }}
+      >
+        <div className="text-3xl opacity-80">💌</div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/70 mb-1">
+            Dear
+          </p>
+          <p
+            className="font-display font-bold text-white leading-tight"
+            style={{ fontSize: 'clamp(1.3rem, 4vw, 1.8rem)' }}
+          >
+            {childName}
+          </p>
+        </div>
+        <div className="w-10 h-px" style={{ background: 'rgba(255,255,255,0.35)' }} />
+        <div>
+          <p className="text-xs text-white/70 uppercase tracking-wider mb-0.5">from</p>
+          <p className="font-handwritten text-lg text-white">{content.author_name}</p>
+        </div>
+        {content.reveal_date && (
+          <div
+            className="px-3 py-1 rounded-full text-xs font-medium"
+            style={{ background: 'rgba(255,255,255,0.2)' }}
+          >
+            {locked ? `Unlocks ${formatRevealDate(content.reveal_date)}` : formatRevealDate(content.reveal_date)}
+          </div>
+        )}
+      </div>
+
+      {/* Right panel — letter body */}
+      <div className="flex-1 relative flex flex-col" style={{ background: 'white' }}>
+        {/* Stamp SVG */}
+        <div className="absolute top-4 right-4 pointer-events-none" style={{ opacity: 0.35 }}>
+          <svg width="40" height="48" viewBox="0 0 40 48" fill="none">
+            <rect x="2" y="2" width="36" height="44" rx="2" stroke="var(--color-primary)" strokeWidth="1.5" strokeDasharray="3 2" />
+            <rect x="7" y="7" width="26" height="34" rx="1" fill="var(--color-primary-light)" />
+            <text x="20" y="28" textAnchor="middle" fontSize="16" fill="var(--color-primary)">💌</text>
+          </svg>
+        </div>
+
+        {/* Owner banner */}
+        {isOwner && content.reveal_date && isLocked(content.reveal_date) && (
+          <div
+            className="mx-4 mt-3 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2"
+            style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}
+          >
+            ⏰ Locked until {formatRevealDate(content.reveal_date)} for viewers
+          </div>
+        )}
+
+        {locked ? (
+          <div className="flex-1 flex flex-col items-center justify-center px-8 text-center gap-4">
+            <div className="text-5xl">🔒</div>
+            <p className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+              Unlocks on {content.reveal_date ? formatRevealDate(content.reveal_date) : ''}
+            </p>
+            <p
+              className="font-handwritten text-base max-w-xs opacity-30 select-none pointer-events-none"
+              style={{ filter: 'blur(4px)', color: 'var(--color-text-primary)' }}
+            >
+              {textContent.slice(0, 120) || 'This letter is waiting for you…'}
+            </p>
+          </div>
+        ) : (
+          <div className="flex-1 px-8 py-8 flex flex-col gap-4 overflow-hidden">
+            <p
+              className="font-handwritten text-lg leading-[1.85] whitespace-pre-wrap flex-1 overflow-hidden"
+              style={{ color: '#3d2a10' }}
+            >
+              {textContent}
+            </p>
+            <div className="pt-3" style={{ borderTop: '1px solid var(--color-border)' }}>
+              <p className="font-handwritten text-sm" style={{ color: '#6b4c1e' }}>With all my love,</p>
+              <p className="font-handwritten font-bold text-xl mt-0.5" style={{ color: '#5c3d14' }}>
+                {content.author_name}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Classic variant (original parchment) ──────────────────────────────────────
+function LetterClassic({ content, childName, isOwner }: Omit<Props, 'variant'>) {
   const locked = isLocked(content.reveal_date) && !isOwner;
   const textContent = renderTiptap(content.content_tiptap as Record<string, unknown>);
   const initials = (content.author_name ?? '')
@@ -141,24 +326,21 @@ export function LetterPage({ content, childName, isOwner }: Props) {
               }}
             >
               {/* Seal ridges */}
-              {Array.from({ length: 12 }).map((_, i) => {
-                const angle = (i * 30 * Math.PI) / 180;
-                return (
-                  <div
-                    key={i}
-                    className="absolute"
-                    style={{
-                      width: '3px',
-                      height: '56px',
-                      background: 'rgba(255,255,255,0.06)',
-                      transformOrigin: '50% 100%',
-                      bottom: '50%',
-                      left: 'calc(50% - 1.5px)',
-                      transform: `rotate(${i * 30}deg)`,
-                    }}
-                  />
-                );
-              })}
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute"
+                  style={{
+                    width: '3px',
+                    height: '56px',
+                    background: 'rgba(255,255,255,0.06)',
+                    transformOrigin: '50% 100%',
+                    bottom: '50%',
+                    left: 'calc(50% - 1.5px)',
+                    transform: `rotate(${i * 30}deg)`,
+                  }}
+                />
+              ))}
               <div className="relative z-10 flex flex-col items-center">
                 <span className="text-3xl">🔒</span>
                 {initials && (
@@ -229,4 +411,10 @@ export function LetterPage({ content, childName, isOwner }: Props) {
       )}
     </div>
   );
+}
+
+export function LetterPage({ content, childName, isOwner, variant = 'classic' }: Props) {
+  if (variant === 'modern') return <LetterModern content={content} childName={childName} isOwner={isOwner} />;
+  if (variant === 'postcard') return <LetterPostcard content={content} childName={childName} isOwner={isOwner} />;
+  return <LetterClassic content={content} childName={childName} isOwner={isOwner} />;
 }

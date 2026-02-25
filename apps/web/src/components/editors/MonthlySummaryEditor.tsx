@@ -6,9 +6,11 @@ import { createPage } from '@/app/actions/pages';
 
 interface Props {
   onClose: () => void;
+  templateVariant?: string;
+  sectionId?: string;
 }
 
-export function MonthlySummaryEditor({ onClose }: Props) {
+export function MonthlySummaryEditor({ onClose, templateVariant, sectionId }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +22,7 @@ export function MonthlySummaryEditor({ onClose }: Props) {
     year_month: defaultYearMonth,
     weight_kg: '',
     height_cm: '',
+    head_circumference_cm: '',
     notes: '',
   });
 
@@ -40,8 +43,9 @@ export function MonthlySummaryEditor({ onClose }: Props) {
         year_month: form.year_month,
         weight_kg: form.weight_kg ? parseFloat(form.weight_kg) : undefined,
         height_cm: form.height_cm ? parseFloat(form.height_cm) : undefined,
+        head_circumference_cm: form.head_circumference_cm ? parseFloat(form.head_circumference_cm) : undefined,
         notes: form.notes || undefined,
-      });
+      }, templateVariant, sectionId);
       onClose();
       router.push(`/book/${page.id}`);
     } catch (e) {
@@ -66,7 +70,7 @@ export function MonthlySummaryEditor({ onClose }: Props) {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <div>
           <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>
             Weight (kg)
@@ -95,6 +99,22 @@ export function MonthlySummaryEditor({ onClose }: Props) {
             value={form.height_cm}
             onChange={(e) => set('height_cm', e.target.value)}
             placeholder="68"
+            className="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>
+            Head (cm)
+          </label>
+          <input
+            type="number"
+            step="0.1"
+            min="0"
+            max="100"
+            value={form.head_circumference_cm}
+            onChange={(e) => set('head_circumference_cm', e.target.value)}
+            placeholder="44"
             className="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
           />

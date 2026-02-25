@@ -4,11 +4,13 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { createPage } from '@/app/actions/pages';
-import type { PhotoLayout, PhotoItem } from '@babybook/shared';
-import imageCompression from 'browser-image-compression';
+import { uploadMediaFile, validateMediaFile, getMediaFileType } from '@/lib/uploadMedia';
+import type { PhotoLayout, MediaItem } from '@babybook/shared';
 
 interface Props {
   onClose: () => void;
+  templateVariant?: string;
+  sectionId?: string;
 }
 
 const LAYOUTS: { id: PhotoLayout; label: string; emoji: string; maxPhotos: number }[] = [
@@ -17,10 +19,13 @@ const LAYOUTS: { id: PhotoLayout; label: string; emoji: string; maxPhotos: numbe
   { id: 'polaroid', label: 'Polaroid', emoji: '📸', maxPhotos: 4 },
 ];
 
-export function PhotoSpreadEditor({ onClose }: Props) {
+type LocalMediaItem = MediaItem & { localUrl?: string };
+
+export function PhotoSpreadEditor({ onClose, templateVariant, sectionId }: Props) {
   const router = useRouter();
-  const [layout, setLayout] = useState<PhotoLayout>('polaroid');
-  const [photos, setPhotos] = useState<(PhotoItem & { file?: File; localUrl?: string })[]>([]);
+  const [layout, setLayout] = useState<PhotoLayout>((templateVariant as PhotoLayout) ?? 'polaroid');
+  const effectiveLayout = (templateVariant as PhotoLayout) ?? layout;
+  const [media, setMedia] = useState<LocalMediaItem[]>([]);
   const [pageDate, setPageDate] = useState(new Date().toISOString().split('T')[0]);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -28,20 +33,19 @@ export function PhotoSpreadEditor({ onClose }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
-  const maxPhotos = LAYOUTS.find((l) => l.id === layout)?.maxPhotos ?? 4;
+  const maxItems = LAYOUTS.find((l) => l.id === effectiveLayout)?.maxPhotos ?? 4;
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
 
-    const remaining = maxPhotos - photos.length;
+    const remaining = maxItems - media.length;
     const toProcess = files.slice(0, remaining);
 
     setUploading(true);
     setError(null);
 
     try {
-      // Get family context for storage path
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
@@ -53,38 +57,31 @@ export function PhotoSpreadEditor({ onClose }: Props) {
 
       if (!member) throw new Error('No family found');
 
-      const newPhotos: (PhotoItem & { localUrl?: string })[] = [];
+      const newItems: LocalMediaItem[] = [];
 
       for (const file of toProcess) {
-        // Compress image browser-side
-        const compressed = await imageCompression(file, {
-          maxSizeMB: 1,
-          maxWidthOrHeight: 1920,
-          useWebWorker: true,
-        });
+        const validation = validateMediaFile(file);
+        if (!validation.valid) throw new Error(validation.error);
 
-        const ext = file.name.split('.').pop() ?? 'jpg';
-        const path = `${member.family_id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const mediaType = getMediaFileType(file);
+        const localUrl = URL.createObjectURL(file);
 
-        // Upload directly to Supabase Storage (browser → Storage, bypassing Vercel)
-        const { error: uploadError } = await supabase.storage
-          .from('media')
-          .upload(path, compressed, { contentType: compressed.type });
+        const { storage_path, public_url } = await uploadMediaFile(
+          supabase,
+          file,
+          member.family_id,
+          { compress: mediaType === 'image' }
+        );
 
-        if (uploadError) throw uploadError;
-
-        const { data: urlData } = supabase.storage
-          .from('media')
-          .getPublicUrl(path);
-
-        newPhotos.push({
-          storage_path: path,
-          public_url: urlData.publicUrl,
-          localUrl: URL.createObjectURL(compressed),
+        newItems.push({
+          storage_path,
+          public_url,
+          localUrl,
+          media_type: mediaType === 'video' ? 'video' : 'photo',
         });
       }
 
-      setPhotos((prev) => [...prev, ...newPhotos]);
+      setMedia((prev) => [...prev, ...newItems]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Upload failed');
     } finally {
@@ -93,19 +90,17 @@ export function PhotoSpreadEditor({ onClose }: Props) {
     }
   }
 
-  function removePhoto(index: number) {
-    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  function removeItem(index: number) {
+    setMedia((prev) => prev.filter((_, i) => i !== index));
   }
 
   function updateCaption(index: number, caption: string) {
-    setPhotos((prev) =>
-      prev.map((p, i) => (i === index ? { ...p, caption } : p))
-    );
+    setMedia((prev) => prev.map((p, i) => (i === index ? { ...p, caption } : p)));
   }
 
   async function handleSave() {
-    if (!photos.length) {
-      setError('Please add at least one photo.');
+    if (!media.length) {
+      setError('Please add at least one photo or video.');
       return;
     }
     setSaving(true);
@@ -115,14 +110,20 @@ export function PhotoSpreadEditor({ onClose }: Props) {
         'photo_spread',
         pageDate,
         {
-          layout,
-          photos: photos.map(({ storage_path, caption, public_url }) => ({
+          layout: effectiveLayout,
+          // backward-compat: populate photos with photo-only items
+          photos: media
+            .filter((m) => m.media_type === 'photo')
+            .map(({ storage_path, caption, public_url }) => ({ storage_path, caption, public_url })),
+          media: media.map(({ storage_path, caption, public_url, media_type }) => ({
             storage_path,
             caption,
             public_url,
+            media_type,
           })),
         },
-        layout
+        templateVariant ?? effectiveLayout,
+        sectionId
       );
       onClose();
       router.push(`/book/${page.id}`);
@@ -134,55 +135,70 @@ export function PhotoSpreadEditor({ onClose }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Layout selector */}
-      <div>
-        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>
-          Layout
-        </label>
-        <div className="flex gap-2">
-          {LAYOUTS.map((l) => (
-            <button
-              key={l.id}
-              onClick={() => { setLayout(l.id); setPhotos([]); }}
-              className="flex-1 py-2 rounded-xl border text-sm font-medium transition"
-              style={{
-                borderColor: layout === l.id ? 'var(--color-primary)' : 'var(--color-border)',
-                background: layout === l.id ? 'var(--color-primary-light)' : undefined,
-                color: layout === l.id ? 'var(--color-primary-dark)' : 'var(--color-text-secondary)',
-              }}
-            >
-              {l.emoji} {l.label}
-            </button>
-          ))}
+      {/* Layout selector — hidden when variant was pre-selected in the picker */}
+      {!templateVariant && (
+        <div>
+          <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>
+            Layout
+          </label>
+          <div className="flex gap-2">
+            {LAYOUTS.map((l) => (
+              <button
+                key={l.id}
+                onClick={() => { setLayout(l.id); setMedia([]); }}
+                className="flex-1 py-2 rounded-xl border text-sm font-medium transition"
+                style={{
+                  borderColor: effectiveLayout === l.id ? 'var(--color-primary)' : 'var(--color-border)',
+                  background: effectiveLayout === l.id ? 'var(--color-primary-light)' : undefined,
+                  color: effectiveLayout === l.id ? 'var(--color-primary-dark)' : 'var(--color-text-secondary)',
+                }}
+              >
+                {l.emoji} {l.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Photo upload area */}
+      {/* Media upload area */}
       <div>
         <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>
-          Photos ({photos.length}/{maxPhotos})
+          Photos &amp; Videos ({media.length}/{maxItems}) — {LAYOUTS.find(l => l.id === effectiveLayout)?.label} layout
         </label>
 
-        {/* Preview grid */}
-        {photos.length > 0 && (
+        {media.length > 0 && (
           <div className="grid grid-cols-2 gap-2 mb-3">
-            {photos.map((photo, i) => (
+            {media.map((item, i) => (
               <div key={i} className="relative group">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photo.localUrl ?? photo.public_url ?? photo.storage_path}
-                  alt={`Photo ${i + 1}`}
-                  className="w-full h-24 object-cover rounded-lg"
-                />
+                {item.media_type === 'video' ? (
+                  <video
+                    src={item.localUrl ?? item.public_url}
+                    className="w-full h-24 object-cover rounded-lg bg-black"
+                    muted
+                    playsInline
+                  />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={item.localUrl ?? item.public_url ?? item.storage_path}
+                    alt={`Item ${i + 1}`}
+                    className="w-full h-24 object-cover rounded-lg"
+                  />
+                )}
+                {item.media_type === 'video' && (
+                  <div className="absolute top-1 left-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded">
+                    🎬
+                  </div>
+                )}
                 <button
-                  onClick={() => removePhoto(i)}
+                  onClick={() => removeItem(i)}
                   className="absolute top-1 right-1 w-5 h-5 bg-black/60 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
                 >
                   ×
                 </button>
                 <input
                   type="text"
-                  value={photo.caption ?? ''}
+                  value={item.caption ?? ''}
                   onChange={(e) => updateCaption(i, e.target.value)}
                   placeholder="Caption…"
                   className="mt-1 w-full px-2 py-1 border rounded-lg text-xs focus:outline-none"
@@ -193,13 +209,13 @@ export function PhotoSpreadEditor({ onClose }: Props) {
           </div>
         )}
 
-        {photos.length < maxPhotos && (
+        {media.length < maxItems && (
           <>
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp"
-              multiple={maxPhotos > 1}
+              accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"
+              multiple={maxItems > 1}
               onChange={handleFileChange}
               className="hidden"
             />
@@ -209,10 +225,8 @@ export function PhotoSpreadEditor({ onClose }: Props) {
               className="w-full py-8 border-2 border-dashed rounded-xl text-sm transition hover:border-primary/50 disabled:opacity-60"
               style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
             >
-              {uploading ? '⏳ Uploading…' : '📷 Click to add photos'}
-              <div className="text-xs mt-1 opacity-60">
-                Compressed & uploaded directly to storage
-              </div>
+              {uploading ? '⏳ Uploading…' : '📷 Click to add photos or videos'}
+              <div className="text-xs mt-1 opacity-60">JPEG, PNG, WebP, MP4, WebM · max 50 MB</div>
             </button>
           </>
         )}

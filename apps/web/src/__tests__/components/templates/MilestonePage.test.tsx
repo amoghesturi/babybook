@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import type { MilestoneCategory } from '@babybook/shared';
 import { MilestonePage } from '@/components/templates/MilestonePage';
 
 const BASE_CONTENT = {
   milestone_name: 'First Steps',
-  category: 'physical',
+  category: 'physical' as MilestoneCategory,
   achieved_at: '2024-10-01',
   notes: undefined as string | undefined,
   photo_storage_path: undefined as string | undefined,
