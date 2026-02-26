@@ -2,26 +2,32 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createPage } from '@/app/actions/pages';
+import { createPage, updatePage } from '@/app/actions/pages';
 import { TiptapEditor } from './TiptapEditor';
 import type { JSONContent } from '@tiptap/core';
+import type { LetterContent } from '@babybook/shared';
 
 interface Props {
   onClose: () => void;
   templateVariant?: string;
   sectionId?: string;
+  pageId?: string;
+  initialContent?: LetterContent;
+  initialPageDate?: string;
 }
 
-export function LetterEditor({ onClose, templateVariant, sectionId }: Props) {
+export function LetterEditor({ onClose, templateVariant, sectionId, pageId, initialContent, initialPageDate }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [content, setContent] = useState<JSONContent>({ type: 'doc', content: [{ type: 'paragraph' }] });
+  const [content, setContent] = useState<JSONContent>(
+    (initialContent?.content_tiptap as JSONContent) ?? { type: 'doc', content: [{ type: 'paragraph' }] }
+  );
 
   const [form, setForm] = useState({
-    author_name: '',
-    reveal_date: '',
-    pageDate: new Date().toISOString().split('T')[0],
+    author_name: initialContent?.author_name ?? '',
+    reveal_date: initialContent?.reveal_date ?? '',
+    pageDate: initialPageDate ?? new Date().toISOString().split('T')[0],
   });
 
   function set(field: keyof typeof form, value: string) {
@@ -35,14 +41,21 @@ export function LetterEditor({ onClose, templateVariant, sectionId }: Props) {
     }
     setSaving(true);
     setError(null);
+    const letterContent = {
+      author_name: form.author_name,
+      content_tiptap: content,
+      reveal_date: form.reveal_date || undefined,
+    };
     try {
-      const page = await createPage('letter', form.pageDate, {
-        author_name: form.author_name,
-        content_tiptap: content,
-        reveal_date: form.reveal_date || undefined,
-      }, templateVariant, sectionId);
-      onClose();
-      router.push(`/book/${page.id}`);
+      if (pageId) {
+        await updatePage(pageId, letterContent, form.pageDate);
+        router.refresh();
+        onClose();
+      } else {
+        const page = await createPage('letter', form.pageDate, letterContent, templateVariant, sectionId);
+        onClose();
+        router.push(`/book/${page.id}`);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save');
       setSaving(false);
@@ -121,7 +134,7 @@ export function LetterEditor({ onClose, templateVariant, sectionId }: Props) {
         <button onClick={handleSave} disabled={saving}
           className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition disabled:opacity-60"
           style={{ background: 'var(--color-primary)' }}>
-          {saving ? 'Saving…' : 'Save as Draft'}
+          {saving ? 'Saving…' : pageId ? 'Save Changes' : 'Save as Draft'}
         </button>
       </div>
     </div>

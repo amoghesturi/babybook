@@ -23,6 +23,7 @@ import { deleteSection, renameSection, movePageToSection } from '@/app/actions/s
 import { PAGE_TEMPLATES } from '@babybook/shared';
 import type { BookPage, BookSection } from '@babybook/shared';
 import { AddSectionModal } from './AddSectionModal';
+import { EditPageModal } from '@/components/editors/EditPageModal';
 
 interface Props {
   initialPages: BookPage[];
@@ -32,13 +33,14 @@ interface Props {
 // ── Page card ─────────────────────────────────────────────────────────────────
 
 function SortablePageCard({
-  page, sections, onPublish, onDelete, onMoved,
+  page, sections, onPublish, onDelete, onMoved, onEdit,
 }: {
   page: BookPage;
   sections: BookSection[];
   onPublish: (id: string) => void;
   onDelete: (id: string) => void;
   onMoved: (pageId: string, sectionId: string | null) => void;
+  onEdit: (page: BookPage) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: page.id });
   const [movingTo, setMovingTo] = useState(false);
@@ -121,6 +123,15 @@ function SortablePageCard({
           </select>
         )}
 
+        {page.page_type !== 'cover' && (
+          <button
+            onClick={() => onEdit(page)}
+            className="px-3 py-1.5 text-xs rounded-lg border transition hover:bg-border/30"
+            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
+          >
+            Edit
+          </button>
+        )}
         <a
           href={`/book/${page.id}`}
           className="px-3 py-1.5 text-xs rounded-lg border transition hover:bg-border/30"
@@ -152,7 +163,7 @@ function SortablePageCard({
 // ── Section group ─────────────────────────────────────────────────────────────
 
 function SectionGroup({
-  section, pages, allSections, onPublish, onDelete, onMoved, onRenamed, onDeleted,
+  section, pages, allSections, onPublish, onDelete, onMoved, onEdit, onRenamed, onDeleted,
 }: {
   section: BookSection | null; // null = unsectioned
   pages: BookPage[];
@@ -160,6 +171,7 @@ function SectionGroup({
   onPublish: (id: string) => void;
   onDelete: (id: string) => void;
   onMoved: (pageId: string, sectionId: string | null) => void;
+  onEdit: (page: BookPage) => void;
   onRenamed: (sectionId: string, name: string) => void;
   onDeleted: (sectionId: string) => void;
 }) {
@@ -280,6 +292,7 @@ function SectionGroup({
                   onPublish={onPublish}
                   onDelete={onDelete}
                   onMoved={onMoved}
+                  onEdit={onEdit}
                 />
               ))}
             </div>
@@ -297,6 +310,7 @@ export function ManagePages({ initialPages, initialSections }: Props) {
   const [sections, setSections] = useState<BookSection[]>(initialSections);
   const [filter, setFilter] = useState<'all' | 'draft' | 'published'>('all');
   const [showAddSection, setShowAddSection] = useState(false);
+  const [editingPage, setEditingPage] = useState<BookPage | null>(null);
 
   const filtered = filter === 'all' ? pages : pages.filter((p) => p.status === filter);
 
@@ -405,6 +419,7 @@ export function ManagePages({ initialPages, initialSections }: Props) {
               onPublish={handlePublish}
               onDelete={handleDelete}
               onMoved={handleMoved}
+              onEdit={setEditingPage}
               onRenamed={handleSectionRenamed}
               onDeleted={handleSectionDeleted}
             />
@@ -419,6 +434,7 @@ export function ManagePages({ initialPages, initialSections }: Props) {
               onPublish={handlePublish}
               onDelete={handleDelete}
               onMoved={handleMoved}
+              onEdit={setEditingPage}
               onRenamed={() => {}}
               onDeleted={() => {}}
             />
@@ -434,6 +450,13 @@ export function ManagePages({ initialPages, initialSections }: Props) {
         <AddSectionModal
           onClose={() => setShowAddSection(false)}
           onCreated={() => { window.location.reload(); }}
+        />
+      )}
+
+      {editingPage && (
+        <EditPageModal
+          page={editingPage}
+          onClose={() => setEditingPage(null)}
         />
       )}
     </div>

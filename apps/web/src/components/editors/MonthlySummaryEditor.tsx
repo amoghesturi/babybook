@@ -2,15 +2,18 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createPage } from '@/app/actions/pages';
+import { createPage, updatePage } from '@/app/actions/pages';
+import type { MonthlySummaryContent } from '@babybook/shared';
 
 interface Props {
   onClose: () => void;
   templateVariant?: string;
   sectionId?: string;
+  pageId?: string;
+  initialContent?: MonthlySummaryContent;
 }
 
-export function MonthlySummaryEditor({ onClose, templateVariant, sectionId }: Props) {
+export function MonthlySummaryEditor({ onClose, templateVariant, sectionId, pageId, initialContent }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,11 +22,11 @@ export function MonthlySummaryEditor({ onClose, templateVariant, sectionId }: Pr
   const defaultYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
   const [form, setForm] = useState({
-    year_month: defaultYearMonth,
-    weight_kg: '',
-    height_cm: '',
-    head_circumference_cm: '',
-    notes: '',
+    year_month: initialContent?.year_month ?? defaultYearMonth,
+    weight_kg: initialContent?.weight_kg != null ? String(initialContent.weight_kg) : '',
+    height_cm: initialContent?.height_cm != null ? String(initialContent.height_cm) : '',
+    head_circumference_cm: initialContent?.head_circumference_cm != null ? String(initialContent.head_circumference_cm) : '',
+    notes: initialContent?.notes ?? '',
   });
 
   function set(field: keyof typeof form, value: string) {
@@ -37,17 +40,24 @@ export function MonthlySummaryEditor({ onClose, templateVariant, sectionId }: Pr
     }
     setSaving(true);
     setError(null);
+    const pageDate = `${form.year_month}-01`;
+    const summaryContent = {
+      year_month: form.year_month,
+      weight_kg: form.weight_kg ? parseFloat(form.weight_kg) : undefined,
+      height_cm: form.height_cm ? parseFloat(form.height_cm) : undefined,
+      head_circumference_cm: form.head_circumference_cm ? parseFloat(form.head_circumference_cm) : undefined,
+      notes: form.notes || undefined,
+    };
     try {
-      const pageDate = `${form.year_month}-01`;
-      const page = await createPage('monthly_summary', pageDate, {
-        year_month: form.year_month,
-        weight_kg: form.weight_kg ? parseFloat(form.weight_kg) : undefined,
-        height_cm: form.height_cm ? parseFloat(form.height_cm) : undefined,
-        head_circumference_cm: form.head_circumference_cm ? parseFloat(form.head_circumference_cm) : undefined,
-        notes: form.notes || undefined,
-      }, templateVariant, sectionId);
-      onClose();
-      router.push(`/book/${page.id}`);
+      if (pageId) {
+        await updatePage(pageId, summaryContent, pageDate);
+        router.refresh();
+        onClose();
+      } else {
+        const page = await createPage('monthly_summary', pageDate, summaryContent, templateVariant, sectionId);
+        onClose();
+        router.push(`/book/${page.id}`);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save');
       setSaving(false);
@@ -148,7 +158,7 @@ export function MonthlySummaryEditor({ onClose, templateVariant, sectionId }: Pr
         <button onClick={handleSave} disabled={saving}
           className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition disabled:opacity-60"
           style={{ background: 'var(--color-primary)' }}>
-          {saving ? 'Saving…' : 'Save as Draft'}
+          {saving ? 'Saving…' : pageId ? 'Save Changes' : 'Save as Draft'}
         </button>
       </div>
     </div>

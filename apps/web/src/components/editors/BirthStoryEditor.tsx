@@ -2,26 +2,30 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createPage } from '@/app/actions/pages';
+import { createPage, updatePage } from '@/app/actions/pages';
+import type { BirthStoryContent } from '@babybook/shared';
 
 interface Props {
   onClose: () => void;
   templateVariant?: string;
   sectionId?: string;
+  pageId?: string;
+  initialContent?: BirthStoryContent;
+  initialPageDate?: string;
 }
 
-export function BirthStoryEditor({ onClose, templateVariant, sectionId }: Props) {
+export function BirthStoryEditor({ onClose, templateVariant, sectionId, pageId, initialContent, initialPageDate }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
-    date_of_birth: '',
-    time_of_birth: '',
-    weight_kg: '',
-    height_cm: '',
-    hospital: '',
-    story_text: '',
+    date_of_birth: initialContent?.date_of_birth ?? '',
+    time_of_birth: initialContent?.time_of_birth ?? '',
+    weight_kg: initialContent?.weight_kg != null ? String(initialContent.weight_kg) : '',
+    height_cm: initialContent?.height_cm != null ? String(initialContent.height_cm) : '',
+    hospital: initialContent?.hospital ?? '',
+    story_text: initialContent?.story_text ?? '',
   });
 
   function set(field: keyof typeof form, value: string) {
@@ -35,17 +39,24 @@ export function BirthStoryEditor({ onClose, templateVariant, sectionId }: Props)
     }
     setSaving(true);
     setError(null);
+    const content = {
+      date_of_birth: form.date_of_birth,
+      time_of_birth: form.time_of_birth || undefined,
+      weight_kg: parseFloat(form.weight_kg),
+      height_cm: parseFloat(form.height_cm),
+      hospital: form.hospital || undefined,
+      story_text: form.story_text || undefined,
+    };
     try {
-      const page = await createPage('birth_story', form.date_of_birth, {
-        date_of_birth: form.date_of_birth,
-        time_of_birth: form.time_of_birth || undefined,
-        weight_kg: parseFloat(form.weight_kg),
-        height_cm: parseFloat(form.height_cm),
-        hospital: form.hospital || undefined,
-        story_text: form.story_text || undefined,
-      }, templateVariant, sectionId);
-      onClose();
-      router.push(`/book/${page.id}`);
+      if (pageId) {
+        await updatePage(pageId, content, form.date_of_birth);
+        router.refresh();
+        onClose();
+      } else {
+        const page = await createPage('birth_story', form.date_of_birth, content, templateVariant, sectionId);
+        onClose();
+        router.push(`/book/${page.id}`);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save');
       setSaving(false);
@@ -128,7 +139,7 @@ export function BirthStoryEditor({ onClose, templateVariant, sectionId }: Props)
         <button onClick={handleSave} disabled={saving}
           className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition disabled:opacity-60"
           style={{ background: 'var(--color-primary)' }}>
-          {saving ? 'Saving…' : 'Save as Draft'}
+          {saving ? 'Saving…' : pageId ? 'Save Changes' : 'Save as Draft'}
         </button>
       </div>
     </div>

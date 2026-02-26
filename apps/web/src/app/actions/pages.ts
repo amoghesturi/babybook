@@ -81,12 +81,15 @@ export async function createPage(
   return page;
 }
 
-export async function updatePage(pageId: string, content: PageContent) {
+export async function updatePage(pageId: string, content: PageContent, pageDate?: string) {
   const { supabase, familyId } = await getOwnerContext();
+
+  const updateData: Record<string, unknown> = { content, updated_at: new Date().toISOString() };
+  if (pageDate) updateData.page_date = pageDate;
 
   const { error } = await supabase
     .from('book_pages')
-    .update({ content, updated_at: new Date().toISOString() })
+    .update(updateData)
     .eq('id', pageId)
     .eq('family_id', familyId);
 

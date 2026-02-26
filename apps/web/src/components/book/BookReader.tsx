@@ -6,6 +6,7 @@ import { BookNav } from './BookNav';
 import { PageFlip } from './PageFlip';
 import { PageRenderer } from './PageRenderer';
 import { AddPageModal } from '@/components/editors/AddPageModal';
+import { EditPageModal } from '@/components/editors/EditPageModal';
 import { ChangeTemplateModal } from './ChangeTemplateModal';
 import { LogoutButton } from '@/components/ui/LogoutButton';
 import type { BookPage, NavigationInfo } from '@babybook/shared';
@@ -23,6 +24,7 @@ export function BookReader({ page, nav, isOwner, childName, childDob, sectionNam
   const router = useRouter();
   const [direction, setDirection] = useState<'next' | 'prev'>('next');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showChangeTemplate, setShowChangeTemplate] = useState(false);
 
   const goToPage = useCallback(
@@ -91,6 +93,15 @@ export function BookReader({ page, nav, isOwner, childName, childDob, sectionNam
             <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium animate-pulse">
               Draft
             </span>
+          )}
+          {isOwner && page.page_type !== 'cover' && (
+            <button
+              onClick={() => setShowEditModal(true)}
+              className="p-2 rounded-lg hover:bg-border/40 text-text-secondary hover:text-text-primary transition text-sm"
+              title="Edit Page"
+            >
+              ✏️
+            </button>
           )}
           {isOwner && (
             <button
@@ -167,6 +178,14 @@ export function BookReader({ page, nav, isOwner, childName, childDob, sectionNam
           pageId={page.id}
         />
       </main>
+
+      {/* Edit page modal */}
+      {showEditModal && (
+        <EditPageModal
+          page={page}
+          onClose={() => setShowEditModal(false)}
+        />
+      )}
 
       {/* Add page modal */}
       {showAddModal && (

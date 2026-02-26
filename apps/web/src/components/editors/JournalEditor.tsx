@@ -3,15 +3,19 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { createPage } from '@/app/actions/pages';
+import { createPage, updatePage } from '@/app/actions/pages';
 import { uploadMediaFile } from '@/lib/uploadMedia';
 import { TiptapEditor } from './TiptapEditor';
 import type { JSONContent } from '@tiptap/core';
+import type { JournalContent } from '@babybook/shared';
 
 interface Props {
   onClose: () => void;
   templateVariant?: string;
   sectionId?: string;
+  pageId?: string;
+  initialContent?: JournalContent;
+  initialPageDate?: string;
 }
 
 const MOODS = [
@@ -24,30 +28,40 @@ const MOODS = [
   { id: 'peaceful', emoji: '😌', label: 'Peaceful' },
 ];
 
-export function JournalEditor({ onClose, templateVariant, sectionId }: Props) {
+export function JournalEditor({ onClose, templateVariant, sectionId, pageId, initialContent, initialPageDate }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [content, setContent] = useState<JSONContent>({ type: 'doc', content: [{ type: 'paragraph' }] });
+  const [content, setContent] = useState<JSONContent>(
+    (initialContent?.content_tiptap as JSONContent) ?? { type: 'doc', content: [{ type: 'paragraph' }] }
+  );
   const [tagInput, setTagInput] = useState('');
 
   const [form, setForm] = useState({
-    title: '',
-    mood: '',
-    tags: [] as string[],
-    pageDate: new Date().toISOString().split('T')[0],
+    title: initialContent?.title ?? '',
+    mood: initialContent?.mood ?? '',
+    tags: initialContent?.tags ?? [] as string[],
+    pageDate: initialPageDate ?? new Date().toISOString().split('T')[0],
   });
 
-  // Voice note state
-  const [voiceNotePath, setVoiceNotePath] = useState<string | null>(null);
-  const [voiceNoteLocalUrl, setVoiceNoteLocalUrl] = useState<string | null>(null);
-  const [voiceNoteDuration, setVoiceNoteDuration] = useState<number | null>(null);
+  const supabase = createClient();
+
+  // Voice note state — pre-populate from initialContent if editing
+  const initialVoiceUrl = initialContent?.voice_note_storage_path
+    ? supabase.storage.from('media').getPublicUrl(initialContent.voice_note_storage_path).data.publicUrl
+    : null;
+  const [voiceNotePath, setVoiceNotePath] = useState<string | null>(
+    initialContent?.voice_note_storage_path ?? null
+  );
+  const [voiceNoteLocalUrl, setVoiceNoteLocalUrl] = useState<string | null>(initialVoiceUrl);
+  const [voiceNoteDuration, setVoiceNoteDuration] = useState<number | null>(
+    initialContent?.voice_note_duration_s ?? null
+  );
   const [recording, setRecording] = useState(false);
   const [uploadingVoice, setUploadingVoice] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const audioFileInputRef = useRef<HTMLInputElement>(null);
-  const supabase = createClient();
 
   useEffect(() => {
     return () => {
@@ -153,17 +167,24 @@ export function JournalEditor({ onClose, templateVariant, sectionId }: Props) {
     }
     setSaving(true);
     setError(null);
+    const pageContent = {
+      title: form.title,
+      content_tiptap: content,
+      mood: form.mood || undefined,
+      tags: form.tags.length ? form.tags : undefined,
+      voice_note_storage_path: voiceNotePath ?? undefined,
+      voice_note_duration_s: voiceNoteDuration ?? undefined,
+    };
     try {
-      const page = await createPage('journal', form.pageDate, {
-        title: form.title,
-        content_tiptap: content,
-        mood: form.mood || undefined,
-        tags: form.tags.length ? form.tags : undefined,
-        voice_note_storage_path: voiceNotePath ?? undefined,
-        voice_note_duration_s: voiceNoteDuration ?? undefined,
-      }, templateVariant, sectionId);
-      onClose();
-      router.push(`/book/${page.id}`);
+      if (pageId) {
+        await updatePage(pageId, pageContent, form.pageDate);
+        router.refresh();
+        onClose();
+      } else {
+        const page = await createPage('journal', form.pageDate, pageContent, templateVariant, sectionId);
+        onClose();
+        router.push(`/book/${page.id}`);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save');
       setSaving(false);
@@ -350,7 +371,7 @@ export function JournalEditor({ onClose, templateVariant, sectionId }: Props) {
         <button onClick={handleSave} disabled={saving || recording || uploadingVoice}
           className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition disabled:opacity-60"
           style={{ background: 'var(--color-primary)' }}>
-          {saving ? 'Saving…' : 'Save as Draft'}
+          {saving ? 'Saving…' : pageId ? 'Save Changes' : 'Save as Draft'}
         </button>
       </div>
     </div>

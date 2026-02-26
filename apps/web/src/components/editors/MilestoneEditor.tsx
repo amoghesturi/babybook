@@ -3,38 +3,48 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { createPage } from '@/app/actions/pages';
+import { createPage, updatePage } from '@/app/actions/pages';
 import { uploadMediaFile, validateMediaFile } from '@/lib/uploadMedia';
 import { MILESTONE_TYPES, MILESTONE_CATEGORIES } from '@babybook/shared';
-import type { MilestoneCategory } from '@babybook/shared';
+import type { MilestoneCategory, MilestoneContent } from '@babybook/shared';
 
 interface Props {
   onClose: () => void;
   templateVariant?: string;
   sectionId?: string;
+  pageId?: string;
+  initialContent?: MilestoneContent;
+  initialPageDate?: string;
 }
 
-export function MilestoneEditor({ onClose, templateVariant, sectionId }: Props) {
+export function MilestoneEditor({ onClose, templateVariant, sectionId, pageId, initialContent, initialPageDate }: Props) {
   const router = useRouter();
+  const supabase = createClient();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<MilestoneCategory | 'all'>('all');
-  const [customName, setCustomName] = useState('');
-  const [isCustom, setIsCustom] = useState(false);
+
+  // Determine if initial content has a custom milestone (not in predefined list)
+  const initialIsCustom = !!initialContent?.milestone_name &&
+    !MILESTONE_TYPES.some((m) => m.name === initialContent.milestone_name);
+  const [customName, setCustomName] = useState(initialIsCustom ? (initialContent?.milestone_name ?? '') : '');
+  const [isCustom, setIsCustom] = useState(initialIsCustom);
 
   const [form, setForm] = useState({
-    milestone_name: '',
-    category: 'physical' as MilestoneCategory,
-    achieved_at: new Date().toISOString().split('T')[0],
-    notes: '',
+    milestone_name: initialIsCustom ? '' : (initialContent?.milestone_name ?? ''),
+    category: (initialContent?.category ?? 'physical') as MilestoneCategory,
+    achieved_at: initialContent?.achieved_at ?? (initialPageDate ?? new Date().toISOString().split('T')[0]),
+    notes: initialContent?.notes ?? '',
   });
 
-  // Video state
-  const [videoPath, setVideoPath] = useState<string | null>(null);
-  const [videoLocalUrl, setVideoLocalUrl] = useState<string | null>(null);
+  // Video state — pre-populate from initialContent if editing
+  const initialVideoUrl = initialContent?.video_storage_path
+    ? supabase.storage.from('media').getPublicUrl(initialContent.video_storage_path).data.publicUrl
+    : null;
+  const [videoPath, setVideoPath] = useState<string | null>(initialContent?.video_storage_path ?? null);
+  const [videoLocalUrl, setVideoLocalUrl] = useState<string | null>(initialVideoUrl);
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const videoInputRef = useRef<HTMLInputElement>(null);
-  const supabase = createClient();
 
   function set(field: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -92,16 +102,23 @@ export function MilestoneEditor({ onClose, templateVariant, sectionId }: Props) 
     }
     setSaving(true);
     setError(null);
+    const milestoneContent = {
+      milestone_name: milestoneName,
+      category: form.category,
+      achieved_at: form.achieved_at,
+      notes: form.notes || undefined,
+      video_storage_path: videoPath ?? undefined,
+    };
     try {
-      const page = await createPage('milestone', form.achieved_at, {
-        milestone_name: milestoneName,
-        category: form.category,
-        achieved_at: form.achieved_at,
-        notes: form.notes || undefined,
-        video_storage_path: videoPath ?? undefined,
-      }, templateVariant, sectionId);
-      onClose();
-      router.push(`/book/${page.id}`);
+      if (pageId) {
+        await updatePage(pageId, milestoneContent, form.achieved_at);
+        router.refresh();
+        onClose();
+      } else {
+        const page = await createPage('milestone', form.achieved_at, milestoneContent, templateVariant, sectionId);
+        onClose();
+        router.push(`/book/${page.id}`);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save');
       setSaving(false);
@@ -298,7 +315,7 @@ export function MilestoneEditor({ onClose, templateVariant, sectionId }: Props) 
         <button onClick={handleSave} disabled={saving || uploadingVideo}
           className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition disabled:opacity-60"
           style={{ background: 'var(--color-primary)' }}>
-          {saving ? 'Saving…' : 'Save as Draft'}
+          {saving ? 'Saving…' : pageId ? 'Save Changes' : 'Save as Draft'}
         </button>
       </div>
     </div>
