@@ -1,16 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
-export function LoginForm() {
+export function ForgotPasswordForm() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+  const [sent, setSent] = useState(false);
   const supabase = createClient();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -18,58 +16,61 @@ export function LoginForm() {
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
 
     if (error) {
       setError(error.message);
       setLoading(false);
     } else {
-      router.push('/');
-      router.refresh();
+      setSent(true);
     }
+  }
+
+  if (sent) {
+    return (
+      <div className="text-center py-4 space-y-4">
+        <div className="text-5xl">📨</div>
+        <div>
+          <h3 className="font-display font-semibold text-lg mb-1" style={{ color: 'var(--color-text-primary)' }}>
+            Check your inbox
+          </h3>
+          <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+            We sent a password reset link to
+          </p>
+          <p className="font-semibold text-sm mt-0.5" style={{ color: 'var(--color-text-primary)' }}>
+            {email}
+          </p>
+          <p className="text-xs mt-2" style={{ color: 'var(--color-text-secondary)' }}>
+            Click the link to set a new password. It expires in 1 hour.
+          </p>
+        </div>
+        <Link
+          href="/login"
+          className="text-sm font-medium hover:underline"
+          style={{ color: 'var(--color-primary)' }}
+        >
+          ← Back to sign in
+        </Link>
+      </div>
+    );
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
-          Email
+          Email address
         </label>
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          autoFocus
           autoComplete="email"
           placeholder="you@example.com"
-          className="w-full px-4 py-3 border rounded-xl text-sm transition"
-          style={{
-            borderColor: 'var(--color-border)',
-            background: 'var(--color-background)',
-            color: 'var(--color-text-primary)',
-            outline: 'none',
-          }}
-          onFocus={(e) => (e.target.style.borderColor = 'var(--color-primary)')}
-          onBlur={(e) => (e.target.style.borderColor = 'var(--color-border)')}
-        />
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <label className="block text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
-            Password
-          </label>
-          <Link href="/forgot-password" className="text-xs hover:underline" style={{ color: 'var(--color-primary)' }}>
-            Forgot password?
-          </Link>
-        </div>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          autoComplete="current-password"
-          placeholder="••••••••"
           className="w-full px-4 py-3 border rounded-xl text-sm transition"
           style={{
             borderColor: 'var(--color-border)',
@@ -94,13 +95,13 @@ export function LoginForm() {
         className="w-full py-3 rounded-xl text-sm font-semibold text-white transition disabled:opacity-60 mt-2"
         style={{ background: 'linear-gradient(135deg, var(--color-primary-dark), var(--color-primary))' }}
       >
-        {loading ? 'Signing in…' : 'Sign In'}
+        {loading ? 'Sending…' : 'Send reset link'}
       </button>
 
       <p className="text-center text-sm pt-1" style={{ color: 'var(--color-text-secondary)' }}>
-        Don&apos;t have an account?{' '}
-        <Link href="/signup" className="font-semibold hover:underline" style={{ color: 'var(--color-primary)' }}>
-          Create one →
+        Remember your password?{' '}
+        <Link href="/login" className="font-semibold hover:underline" style={{ color: 'var(--color-primary)' }}>
+          Sign in →
         </Link>
       </p>
     </form>

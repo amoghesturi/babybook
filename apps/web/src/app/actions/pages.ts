@@ -2,9 +2,13 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import type { PageType, PageContent } from '@babybook/shared';
+
+const uuidSchema = z.string().uuid('Invalid ID format');
+const themeIdSchema = z.enum(['meadow', 'cotton-candy', 'jungle', 'ocean', 'autumn-leaves', 'night-sky']);
 
 function getAdminClient() {
   return createAdminClient(
@@ -146,6 +150,7 @@ export async function updateSortOrder(
 }
 
 export async function inviteMember(email: string) {
+  const { email: validEmail } = z.object({ email: z.string().email('Invalid email address') }).parse({ email });
   const { supabase, familyId } = await getOwnerContext();
 
   const token = crypto.randomUUID();
@@ -154,7 +159,7 @@ export async function inviteMember(email: string) {
     .from('family_members')
     .insert({
       family_id: familyId,
-      email,
+      email: validEmail,
       role: 'viewer',
       invite_token: token,
       invite_status: 'pending',
@@ -167,6 +172,8 @@ export async function inviteMember(email: string) {
 }
 
 export async function changePageTemplate(pageId: string, templateVariant: string) {
+  uuidSchema.parse(pageId);
+  z.string().min(1).max(50).parse(templateVariant);
   const { supabase, familyId } = await getOwnerContext();
 
   const { error } = await supabase
@@ -181,6 +188,7 @@ export async function changePageTemplate(pageId: string, templateVariant: string
 }
 
 export async function updateTheme(themeId: string) {
+  themeIdSchema.parse(themeId);
   const { supabase, familyId } = await getOwnerContext();
 
   const { error } = await supabase

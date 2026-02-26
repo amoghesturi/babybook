@@ -93,19 +93,21 @@ export function ConfirmEmailClient({ email }: { email: string }) {
         </button>
       </div>
 
-      <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-        Using local dev? Check{' '}
-        <a
-          href="http://127.0.0.1:54324"
-          target="_blank"
-          rel="noreferrer"
-          className="underline"
-          style={{ color: 'var(--color-primary)' }}
-        >
-          Mailpit
-        </a>{' '}
-        for the confirmation email.
-      </p>
+      {process.env.NODE_ENV === 'development' && (
+        <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+          Using local dev? Check{' '}
+          <a
+            href="http://127.0.0.1:54324"
+            target="_blank"
+            rel="noreferrer"
+            className="underline"
+            style={{ color: 'var(--color-primary)' }}
+          >
+            Mailpit
+          </a>{' '}
+          for the confirmation email.
+        </p>
+      )}
     </div>
   );
 }

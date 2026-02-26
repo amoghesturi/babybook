@@ -1,10 +1,16 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { SECTION_TYPES } from '@babybook/shared';
 import type { SectionType, BookSection } from '@babybook/shared';
+
+const uuidSchema = z.string().uuid('Invalid ID format');
+const sectionTypeSchema = z.enum([
+  'pregnancy', 'birth', 'newborn_0_3', 'first_6_months', 'second_6_months', 'toddler', 'custom',
+]);
 
 function getAdminClient() {
   return createAdminClient(
@@ -51,6 +57,8 @@ export async function createSection(
   sectionType: SectionType,
   customName?: string
 ): Promise<BookSection> {
+  sectionTypeSchema.parse(sectionType);
+  if (customName !== undefined) z.string().max(200).trim().parse(customName);
   const { supabase, familyId, childId, childDob } = await getOwnerContext();
   const admin = getAdminClient();
 
@@ -119,6 +127,8 @@ export async function createSection(
 }
 
 export async function renameSection(sectionId: string, name: string): Promise<void> {
+  uuidSchema.parse(sectionId);
+  z.string().min(1, 'Name is required').max(200).parse(name);
   const { supabase, familyId } = await getOwnerContext();
 
   const { error } = await supabase
@@ -132,6 +142,7 @@ export async function renameSection(sectionId: string, name: string): Promise<vo
 }
 
 export async function deleteSection(sectionId: string): Promise<void> {
+  uuidSchema.parse(sectionId);
   const { familyId } = await getOwnerContext();
   const admin = getAdminClient();
 
@@ -150,6 +161,8 @@ export async function movePageToSection(
   pageId: string,
   sectionId: string | null
 ): Promise<void> {
+  uuidSchema.parse(pageId);
+  if (sectionId !== null) uuidSchema.parse(sectionId);
   const { supabase, familyId } = await getOwnerContext();
 
   const { error } = await supabase

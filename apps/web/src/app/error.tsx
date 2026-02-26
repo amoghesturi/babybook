@@ -20,7 +20,9 @@ export default function Error({
         Something went wrong
       </h2>
       <p className="text-text-secondary text-sm max-w-sm text-center">
-        {error.message || 'An unexpected error occurred.'}
+        {process.env.NODE_ENV === 'production'
+          ? 'An unexpected error occurred. Please try again.'
+          : error.message || 'An unexpected error occurred.'}
       </p>
       <div className="flex gap-3">
         <button

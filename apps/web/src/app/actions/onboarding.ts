@@ -1,9 +1,20 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { DEFAULT_THEME_ID } from '@babybook/shared';
+
+const onboardingSchema = z.object({
+  familyName: z.string().min(1, 'Family name is required').max(200).trim(),
+  childName: z.string().min(1, 'Baby name is required').max(200).trim(),
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
+  gender: z.enum(['male', 'female', 'other', '']),
+  bookTitle: z.string().max(300).trim(),
+  subtitle: z.string().max(300).trim(),
+  themeId: z.string().min(1).max(50),
+});
 
 function getAdminClient() {
   return createAdminClient(
@@ -24,6 +35,8 @@ interface OnboardingData {
 }
 
 export async function completeOnboarding(data: OnboardingData) {
+  const validated = onboardingSchema.parse(data);
+
   // Auth check with anon client
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -43,7 +56,7 @@ export async function completeOnboarding(data: OnboardingData) {
   // 1. Create family
   const { data: family, error: familyErr } = await admin
     .from('families')
-    .insert({ name: data.familyName, theme_id: data.themeId || DEFAULT_THEME_ID })
+    .insert({ name: validated.familyName, theme_id: validated.themeId || DEFAULT_THEME_ID })
     .select()
     .single();
   if (familyErr) throw new Error(familyErr.message);
@@ -65,9 +78,9 @@ export async function completeOnboarding(data: OnboardingData) {
     .from('children')
     .insert({
       family_id: family.id,
-      name: data.childName,
-      date_of_birth: data.dateOfBirth,
-      gender: data.gender || null,
+      name: validated.childName,
+      date_of_birth: validated.dateOfBirth,
+      gender: validated.gender || null,
     })
     .select()
     .single();
@@ -84,8 +97,8 @@ export async function completeOnboarding(data: OnboardingData) {
       sort_order: 0,
       status: 'published',
       content: {
-        book_title: data.bookTitle || `${data.childName}'s Baby Book`,
-        subtitle: data.subtitle || `The story of ${data.childName}`,
+        book_title: validated.bookTitle || `${validated.childName}'s Baby Book`,
+        subtitle: validated.subtitle || `The story of ${validated.childName}`,
       },
     })
     .select()

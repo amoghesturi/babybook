@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 
@@ -29,23 +30,31 @@ async function getOwnerContext() {
 }
 
 export async function updateFamilyName(name: string) {
+  const { name: validName } = z.object({ name: z.string().min(1, 'Family name is required').max(200).trim() }).parse({ name });
   const { familyId } = await getOwnerContext();
   const admin = getAdminClient();
 
   const { error } = await admin
     .from('families')
-    .update({ name })
+    .update({ name: validName })
     .eq('id', familyId);
 
   if (error) throw new Error(error.message);
   revalidatePath('/settings');
 }
 
+const childDetailsSchema = z.object({
+  name: z.string().min(1, 'Baby name is required').max(200).trim(),
+  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
+  gender: z.enum(['male', 'female', 'other']).nullable(),
+});
+
 export async function updateChildDetails(details: {
   name: string;
   dateOfBirth: string;
   gender: string | null;
 }) {
+  const validated = childDetailsSchema.parse(details);
   const { supabase, familyId } = await getOwnerContext();
   const admin = getAdminClient();
 
@@ -60,9 +69,9 @@ export async function updateChildDetails(details: {
   const { error } = await admin
     .from('children')
     .update({
-      name: details.name,
-      date_of_birth: details.dateOfBirth,
-      gender: details.gender || null,
+      name: validated.name,
+      date_of_birth: validated.dateOfBirth,
+      gender: validated.gender,
     })
     .eq('id', child.id);
 
@@ -70,10 +79,16 @@ export async function updateChildDetails(details: {
   revalidatePath('/settings');
 }
 
+const coverPageSchema = z.object({
+  bookTitle: z.string().max(300).trim(),
+  subtitle: z.string().max(300).trim(),
+});
+
 export async function updateCoverPage(data: {
   bookTitle: string;
   subtitle: string;
 }) {
+  const validated = coverPageSchema.parse(data);
   const { supabase, familyId } = await getOwnerContext();
   const admin = getAdminClient();
 
@@ -92,8 +107,8 @@ export async function updateCoverPage(data: {
     .update({
       content: {
         ...(cover.content as object),
-        book_title: data.bookTitle,
-        subtitle: data.subtitle,
+        book_title: validated.bookTitle,
+        subtitle: validated.subtitle,
       },
     })
     .eq('id', cover.id);
