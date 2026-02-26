@@ -35,7 +35,7 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Public routes
+  // Public routes (no auth required)
   const publicRoutes = ['/login', '/signup', '/invite'];
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
 
@@ -43,6 +43,16 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
+  }
+
+  // User is authenticated but email not yet confirmed
+  if (user && !user.email_confirmed_at) {
+    if (pathname !== '/confirm-email') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/confirm-email';
+      return NextResponse.redirect(url);
+    }
+    return supabaseResponse;
   }
 
   if (user && (pathname === '/login' || pathname === '/signup')) {

@@ -20,14 +20,28 @@ export default async function GrowthPage() {
   const isOwner = member.role === 'owner';
 
   // Fetch child DOB
-  let childQuery = supabase
+  const { data: child } = await supabase
     .from('children')
     .select('name, date_of_birth')
     .eq('family_id', member.family_id)
     .limit(1)
     .single();
 
-  const { data: child } = await childQuery;
+  // Fetch all page IDs to find the last page (for prev navigation)
+  let navQuery = supabase
+    .from('book_pages')
+    .select('id')
+    .eq('family_id', member.family_id)
+    .is('deleted_at', null)
+    .order('page_date', { ascending: true })
+    .order('sort_order', { ascending: true });
+
+  if (!isOwner) {
+    navQuery = (navQuery as typeof navQuery).eq('status', 'published');
+  }
+
+  const { data: allPages } = await navQuery;
+  const lastPageId = allPages && allPages.length > 0 ? allPages[allPages.length - 1].id : null;
 
   // Fetch growth-relevant pages
   let pagesQuery = supabase
@@ -91,7 +105,6 @@ export default async function GrowthPage() {
     if (!existing) {
       deduped.set(pt.age_months, pt);
     } else {
-      // Keep whichever has more non-null metrics
       const score = (p: GrowthDataPoint) =>
         (p.weight_kg ? 1 : 0) + (p.height_cm ? 1 : 0) + (p.head_circumference_cm ? 1 : 0);
       if (score(pt) > score(existing)) deduped.set(pt.age_months, pt);
@@ -99,24 +112,90 @@ export default async function GrowthPage() {
   }
 
   const dataPoints = Array.from(deduped.values()).sort((a, b) => a.age_months - b.age_months);
+  const childName = child?.name ?? '';
 
   return (
     <div className="min-h-dvh bg-background flex flex-col">
+      {/* Top bar — matches BookReader */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface/80 backdrop-blur-sm sticky top-0 z-10">
-        <a href="/book" className="text-text-secondary hover:text-text-primary text-sm transition">
-          ← Back to Book
-        </a>
-        <h1 className="font-display font-bold text-lg" style={{ color: 'var(--color-primary)' }}>
-          Growth Chart
-        </h1>
-        <LogoutButton />
+        <div className="flex flex-col min-w-0">
+          <span className="font-display text-lg font-semibold text-primary truncate leading-tight">
+            {childName ? `${childName}'s Baby Book` : 'Baby Book'}
+          </span>
+          <span className="text-xs truncate leading-tight" style={{ color: 'var(--color-text-secondary)' }}>
+            Growth Chart
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <LogoutButton />
+        </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-8 w-full">
-        <p className="text-sm mb-6" style={{ color: 'var(--color-text-secondary)' }}>
-          {child?.name ? `${child.name}'s growth over time` : 'Growth over time'} — from birth story &amp; monthly summaries
-        </p>
-        <GrowthChartClient dataPoints={dataPoints} />
+      {/* Book area */}
+      <main className="flex-1 flex flex-col items-center justify-start px-4 py-6 gap-4">
+        <div className="w-full max-w-2xl relative">
+          {/* Prev arrow — back to last regular page */}
+          {lastPageId && (
+            <a
+              href={`/book/${lastPageId}`}
+              className="absolute left-0 top-8 -translate-x-4 md:-translate-x-12 z-10 w-10 h-10 rounded-full bg-surface shadow-md flex items-center justify-center text-text-secondary hover:text-primary hover:shadow-lg transition"
+              aria-label="Previous page"
+            >
+              ◀
+            </a>
+          )}
+
+          {/* Growth chart card */}
+          <div
+            className="book-page w-full rounded-page overflow-hidden"
+            style={{
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              minHeight: '500px',
+            }}
+          >
+            {/* Card header */}
+            <div
+              className="px-6 py-5 flex items-center gap-3"
+              style={{
+                background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%)',
+              }}
+            >
+              <span className="text-3xl">📈</span>
+              <div>
+                <h1 className="font-display font-bold text-white text-xl leading-tight">
+                  Growth Chart
+                </h1>
+                <p className="text-white/75 text-sm">
+                  {childName ? `${childName}'s measurements over time` : 'Measurements over time'}
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <GrowthChartClient dataPoints={dataPoints} />
+            </div>
+          </div>
+
+          {/* No next arrow — growth chart is the last "page" */}
+          <button
+            disabled
+            className="absolute right-0 top-8 translate-x-4 md:translate-x-12 z-10 w-10 h-10 rounded-full bg-surface shadow-md flex items-center justify-center text-text-secondary opacity-20 cursor-not-allowed"
+            aria-label="Next page"
+          >
+            ▶
+          </button>
+        </div>
+
+        {/* Page counter */}
+        <div className="flex items-center gap-3 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+          <span>
+            {(allPages?.length ?? 0) + 1} / {(allPages?.length ?? 0) + 1}
+          </span>
+          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}>
+            Growth Chart
+          </span>
+        </div>
       </main>
     </div>
   );

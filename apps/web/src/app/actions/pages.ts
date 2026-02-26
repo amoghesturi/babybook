@@ -166,6 +166,20 @@ export async function inviteMember(email: string) {
   return { inviteUrl };
 }
 
+export async function changePageTemplate(pageId: string, templateVariant: string) {
+  const { supabase, familyId } = await getOwnerContext();
+
+  const { error } = await supabase
+    .from('book_pages')
+    .update({ template_variant: templateVariant })
+    .eq('id', pageId)
+    .eq('family_id', familyId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/book/${pageId}`);
+}
+
 export async function updateTheme(themeId: string) {
   const { supabase, familyId } = await getOwnerContext();
 

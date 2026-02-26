@@ -6,6 +6,7 @@ import { BookNav } from './BookNav';
 import { PageFlip } from './PageFlip';
 import { PageRenderer } from './PageRenderer';
 import { AddPageModal } from '@/components/editors/AddPageModal';
+import { ChangeTemplateModal } from './ChangeTemplateModal';
 import { LogoutButton } from '@/components/ui/LogoutButton';
 import type { BookPage, NavigationInfo } from '@babybook/shared';
 
@@ -22,6 +23,7 @@ export function BookReader({ page, nav, isOwner, childName, childDob, sectionNam
   const router = useRouter();
   const [direction, setDirection] = useState<'next' | 'prev'>('next');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showChangeTemplate, setShowChangeTemplate] = useState(false);
 
   const goToPage = useCallback(
     (pageId: string, dir: 'next' | 'prev') => {
@@ -90,13 +92,15 @@ export function BookReader({ page, nav, isOwner, childName, childDob, sectionNam
               Draft
             </span>
           )}
-          <a
-            href="/book/growth"
-            className="p-2 rounded-lg hover:bg-border/40 text-text-secondary hover:text-text-primary transition text-sm"
-            title="Growth Chart"
-          >
-            📈
-          </a>
+          {isOwner && (
+            <button
+              onClick={() => setShowChangeTemplate(true)}
+              className="p-2 rounded-lg hover:bg-border/40 text-text-secondary hover:text-text-primary transition text-sm"
+              title="Change Design"
+            >
+              🎨
+            </button>
+          )}
           {isOwner && (
             <a
               href="/book/manage"
@@ -169,6 +173,16 @@ export function BookReader({ page, nav, isOwner, childName, childDob, sectionNam
         <AddPageModal
           pageId={page.id}
           onClose={() => setShowAddModal(false)}
+        />
+      )}
+
+      {/* Change template modal */}
+      {showChangeTemplate && (
+        <ChangeTemplateModal
+          pageId={page.id}
+          pageType={page.page_type}
+          currentVariant={page.template_variant ?? 'classic'}
+          onClose={() => setShowChangeTemplate(false)}
         />
       )}
     </div>

@@ -30,9 +30,9 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-text-primary mb-1.5">
+        <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
           Email
         </label>
         <input
@@ -40,12 +40,22 @@ export function LoginForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="w-full px-4 py-2.5 border border-border rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+          autoComplete="email"
           placeholder="you@example.com"
+          className="w-full px-4 py-3 border rounded-xl text-sm transition"
+          style={{
+            borderColor: 'var(--color-border)',
+            background: 'var(--color-background)',
+            color: 'var(--color-text-primary)',
+            outline: 'none',
+          }}
+          onFocus={(e) => (e.target.style.borderColor = 'var(--color-primary)')}
+          onBlur={(e) => (e.target.style.borderColor = 'var(--color-border)')}
         />
       </div>
+
       <div>
-        <label className="block text-sm font-medium text-text-primary mb-1.5">
+        <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
           Password
         </label>
         <input
@@ -53,13 +63,22 @@ export function LoginForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          className="w-full px-4 py-2.5 border border-border rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+          autoComplete="current-password"
           placeholder="••••••••"
+          className="w-full px-4 py-3 border rounded-xl text-sm transition"
+          style={{
+            borderColor: 'var(--color-border)',
+            background: 'var(--color-background)',
+            color: 'var(--color-text-primary)',
+            outline: 'none',
+          }}
+          onFocus={(e) => (e.target.style.borderColor = 'var(--color-primary)')}
+          onBlur={(e) => (e.target.style.borderColor = 'var(--color-border)')}
         />
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
           {error}
         </div>
       )}
@@ -67,15 +86,16 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark transition disabled:opacity-60 disabled:cursor-not-allowed"
+        className="w-full py-3 rounded-xl text-sm font-semibold text-white transition disabled:opacity-60 mt-2"
+        style={{ background: 'linear-gradient(135deg, var(--color-primary-dark), var(--color-primary))' }}
       >
         {loading ? 'Signing in…' : 'Sign In'}
       </button>
 
-      <p className="text-center text-sm text-text-secondary">
-        New here?{' '}
-        <Link href="/signup" className="text-primary font-medium hover:underline">
-          Create an account
+      <p className="text-center text-sm pt-1" style={{ color: 'var(--color-text-secondary)' }}>
+        Don&apos;t have an account?{' '}
+        <Link href="/signup" className="font-semibold hover:underline" style={{ color: 'var(--color-primary)' }}>
+          Create one →
         </Link>
       </p>
     </form>

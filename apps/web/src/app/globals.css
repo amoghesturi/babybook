@@ -2,8 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── Theme: Cotton Candy (default) ─────────────────────────────────────── */
+/* ─── Theme: Meadow (default) ────────────────────────────────────────────── */
 :root,
+[data-theme="meadow"] {
+  --color-primary: #3d7a58;
+  --color-primary-light: #a8cbb8;
+  --color-primary-dark: #234d38;
+  --color-secondary: #c47c2a;
+  --color-secondary-light: #e8c07a;
+  --color-accent: #e09035;
+  --color-background: #f4f8f5;
+  --color-surface: #ffffff;
+  --color-text-primary: #1a2a22;
+  --color-text-secondary: #5a7468;
+  --color-border: #ccddd4;
+
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-handwritten: 'Caveat', cursive;
+}
+
+/* ─── Theme: Cotton Candy ────────────────────────────────────────────────── */
 [data-theme="cotton-candy"] {
   --color-primary: #e879b0;
   --color-primary-light: #f5b8d8;

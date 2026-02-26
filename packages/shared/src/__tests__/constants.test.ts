@@ -114,8 +114,8 @@ describe('PAGE_TEMPLATES', () => {
 // ─── Themes ───────────────────────────────────────────────────────────────────
 
 describe('THEMES', () => {
-  it('has exactly 5 themes', () => {
-    expect(THEMES.length).toBe(5);
+  it('has exactly 6 themes', () => {
+    expect(THEMES.length).toBe(6);
   });
 
   it('every theme has id, name, and description', () => {
@@ -126,8 +126,8 @@ describe('THEMES', () => {
     }
   });
 
-  it('DEFAULT_THEME_ID is "cotton-candy"', () => {
-    expect(DEFAULT_THEME_ID).toBe('cotton-candy');
+  it('DEFAULT_THEME_ID is "meadow"', () => {
+    expect(DEFAULT_THEME_ID).toBe('meadow');
   });
 
   it('DEFAULT_THEME_ID exists in THEMES list', () => {
@@ -135,8 +135,9 @@ describe('THEMES', () => {
     expect(found).toBeDefined();
   });
 
-  it('includes all 5 expected theme ids', () => {
+  it('includes all expected theme ids', () => {
     const ids = THEMES.map((t) => t.id);
+    expect(ids).toContain('meadow');
     expect(ids).toContain('cotton-candy');
     expect(ids).toContain('jungle');
     expect(ids).toContain('ocean');

@@ -11,9 +11,11 @@ const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 export type MediaFileType = 'image' | 'video' | 'audio';
 
 export function getMediaFileType(file: File): MediaFileType | null {
-  if (ALLOWED_IMAGE_TYPES.includes(file.type)) return 'image';
-  if (ALLOWED_VIDEO_TYPES.includes(file.type)) return 'video';
-  if (ALLOWED_AUDIO_TYPES.includes(file.type)) return 'audio';
+  // Strip codec params (e.g. "audio/webm;codecs=opus" → "audio/webm") for matching
+  const baseType = file.type.split(';')[0].trim();
+  if (ALLOWED_IMAGE_TYPES.includes(baseType)) return 'image';
+  if (ALLOWED_VIDEO_TYPES.includes(baseType)) return 'video';
+  if (ALLOWED_AUDIO_TYPES.includes(baseType)) return 'audio';
   return null;
 }
 
@@ -38,6 +40,7 @@ export async function uploadMediaFile(
   if (!validation.valid) throw new Error(validation.error);
 
   const mediaType = getMediaFileType(file)!;
+  const baseType = file.type.split(';')[0].trim();
   const ext = file.name.split('.').pop() ?? 'bin';
   const path = `${familyId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
@@ -53,7 +56,7 @@ export async function uploadMediaFile(
 
   const { error: uploadError } = await supabase.storage
     .from('media')
-    .upload(path, uploadFile, { contentType: file.type });
+    .upload(path, uploadFile, { contentType: baseType });
 
   if (uploadError) throw uploadError;
 

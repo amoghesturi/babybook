@@ -55,9 +55,10 @@ export default async function BookPageRoute({ params }: Props) {
   const pageIds = (allPages ?? []).map((p: { id: string }) => p.id);
   const currentIndex = pageIds.indexOf(pageId);
 
+  const isLastPage = currentIndex === pageIds.length - 1;
   const nav: NavigationInfo = {
     prevPageId: currentIndex > 0 ? pageIds[currentIndex - 1] : null,
-    nextPageId: currentIndex < pageIds.length - 1 ? pageIds[currentIndex + 1] : null,
+    nextPageId: currentIndex < pageIds.length - 1 ? pageIds[currentIndex + 1] : (isLastPage ? 'growth' : null),
     currentIndex,
     totalPages: pageIds.length,
   };

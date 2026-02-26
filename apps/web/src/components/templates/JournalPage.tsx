@@ -45,6 +45,64 @@ function renderTiptap(content: Record<string, unknown>): string {
   return extractText(content);
 }
 
+function formatDuration(s: number) {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${String(sec).padStart(2, '0')}`;
+}
+
+/** Styled voice-note card — shown in all variants */
+function VoiceNoteCard({
+  storagePath,
+  durationS,
+  accentColor = 'var(--color-primary)',
+}: {
+  storagePath: string;
+  durationS?: number;
+  accentColor?: string;
+}) {
+  const url = storageUrl(storagePath);
+  return (
+    <div
+      className="mx-0 rounded-xl overflow-hidden"
+      style={{
+        border: `1.5px solid ${accentColor}30`,
+        background: `${accentColor}08`,
+      }}
+    >
+      {/* Card header */}
+      <div
+        className="flex items-center gap-2 px-4 py-2"
+        style={{
+          borderBottom: `1px solid ${accentColor}20`,
+          background: `${accentColor}12`,
+        }}
+      >
+        <span style={{ fontSize: '1.1rem' }}>🎙</span>
+        <span
+          className="text-xs font-semibold uppercase tracking-wider"
+          style={{ color: accentColor }}
+        >
+          Voice Note
+        </span>
+        {durationS !== undefined && durationS > 0 && (
+          <span
+            className="ml-auto text-xs font-mono"
+            style={{ color: `${accentColor}99` }}
+          >
+            {formatDuration(durationS)}
+          </span>
+        )}
+      </div>
+      {/* Audio player */}
+      <div className="px-4 py-3">
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <audio controls src={url} className="w-full" style={{ height: '36px' }} />
+      </div>
+    </div>
+  );
+}
+
 // ── Clean variant ─────────────────────────────────────────────────────────────
 function JournalClean({ content, pageDate }: Omit<Props, 'variant'>) {
   const textContent = renderTiptap(content.content_tiptap as Record<string, unknown>);
@@ -102,7 +160,10 @@ function JournalClean({ content, pageDate }: Omit<Props, 'variant'>) {
 
       {content.voice_note_storage_path && (
         <div className="px-8 pt-4">
-          <audio controls src={storageUrl(content.voice_note_storage_path)} className="w-full" />
+          <VoiceNoteCard
+            storagePath={content.voice_note_storage_path}
+            durationS={content.voice_note_duration_s}
+          />
         </div>
       )}
 
@@ -196,7 +257,11 @@ function JournalVibrant({ content, pageDate }: Omit<Props, 'variant'>) {
           )}
           {content.voice_note_storage_path && (
             <div className="px-8 pt-4">
-              <audio controls src={storageUrl(content.voice_note_storage_path)} className="w-full" />
+              <VoiceNoteCard
+                storagePath={content.voice_note_storage_path}
+                durationS={content.voice_note_duration_s}
+                accentColor="var(--color-primary)"
+              />
             </div>
           )}
           <div className="flex-1 px-8 py-5">
@@ -346,7 +411,10 @@ function JournalClassic({ content, pageDate }: Omit<Props, 'variant'>) {
 
         {content.voice_note_storage_path && (
           <div className="relative z-10 px-14 pt-4">
-            <audio controls src={storageUrl(content.voice_note_storage_path)} className="w-full" />
+            <VoiceNoteCard
+              storagePath={content.voice_note_storage_path}
+              durationS={content.voice_note_duration_s}
+            />
           </div>
         )}
 

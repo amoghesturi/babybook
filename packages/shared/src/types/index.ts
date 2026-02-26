@@ -223,6 +223,7 @@ export type MilestoneCategory =
 // ─── Theme ─────────────────────────────────────────────────────────────────
 
 export type ThemeId =
+  | 'meadow'
   | 'cotton-candy'
   | 'jungle'
   | 'ocean'

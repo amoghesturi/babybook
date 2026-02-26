@@ -19,7 +19,7 @@ export function SignupForm() {
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -30,34 +30,48 @@ export function SignupForm() {
     if (error) {
       setError(error.message);
       setLoading(false);
+    } else if (data.session) {
+      // Email confirmations disabled — user is immediately signed in
+      router.push('/onboarding');
     } else {
+      // Confirmation email sent — show "check your email"
       setSuccess(true);
     }
   }
 
   if (success) {
     return (
-      <div className="text-center py-4 space-y-3">
-        <div className="text-4xl">📬</div>
-        <h2 className="text-xl font-semibold text-text-primary">Check your email!</h2>
-        <p className="text-text-secondary text-sm">
-          We sent a confirmation link to <strong>{email}</strong>.
-          Click it to finish signing up.
-        </p>
+      <div className="text-center py-4 space-y-4">
+        <div className="text-5xl">📬</div>
+        <div>
+          <h3 className="font-display font-semibold text-lg mb-1" style={{ color: 'var(--color-text-primary)' }}>
+            Check your inbox
+          </h3>
+          <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+            We sent a confirmation link to
+          </p>
+          <p className="font-semibold text-sm mt-0.5" style={{ color: 'var(--color-text-primary)' }}>
+            {email}
+          </p>
+          <p className="text-xs mt-2" style={{ color: 'var(--color-text-secondary)' }}>
+            Click the link to activate your account and start your baby book.
+          </p>
+        </div>
         <button
           onClick={() => router.push('/login')}
-          className="text-primary hover:underline text-sm"
+          className="text-sm font-medium hover:underline"
+          style={{ color: 'var(--color-primary)' }}
         >
-          Back to sign in
+          ← Back to sign in
         </button>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-text-primary mb-1.5">
+        <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
           Email
         </label>
         <input
@@ -65,12 +79,22 @@ export function SignupForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="w-full px-4 py-2.5 border border-border rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+          autoComplete="email"
           placeholder="you@example.com"
+          className="w-full px-4 py-3 border rounded-xl text-sm transition"
+          style={{
+            borderColor: 'var(--color-border)',
+            background: 'var(--color-background)',
+            color: 'var(--color-text-primary)',
+            outline: 'none',
+          }}
+          onFocus={(e) => (e.target.style.borderColor = 'var(--color-primary)')}
+          onBlur={(e) => (e.target.style.borderColor = 'var(--color-border)')}
         />
       </div>
+
       <div>
-        <label className="block text-sm font-medium text-text-primary mb-1.5">
+        <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
           Password
         </label>
         <input
@@ -79,13 +103,25 @@ export function SignupForm() {
           onChange={(e) => setPassword(e.target.value)}
           required
           minLength={8}
-          className="w-full px-4 py-2.5 border border-border rounded-xl bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+          autoComplete="new-password"
           placeholder="At least 8 characters"
+          className="w-full px-4 py-3 border rounded-xl text-sm transition"
+          style={{
+            borderColor: 'var(--color-border)',
+            background: 'var(--color-background)',
+            color: 'var(--color-text-primary)',
+            outline: 'none',
+          }}
+          onFocus={(e) => (e.target.style.borderColor = 'var(--color-primary)')}
+          onBlur={(e) => (e.target.style.borderColor = 'var(--color-border)')}
         />
+        <p className="mt-1.5 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+          Minimum 8 characters
+        </p>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
           {error}
         </div>
       )}
@@ -93,15 +129,16 @@ export function SignupForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark transition disabled:opacity-60 disabled:cursor-not-allowed"
+        className="w-full py-3 rounded-xl text-sm font-semibold text-white transition disabled:opacity-60 mt-2"
+        style={{ background: 'linear-gradient(135deg, var(--color-primary-dark), var(--color-primary))' }}
       >
         {loading ? 'Creating account…' : 'Create Account'}
       </button>
 
-      <p className="text-center text-sm text-text-secondary">
+      <p className="text-center text-sm pt-1" style={{ color: 'var(--color-text-secondary)' }}>
         Already have an account?{' '}
-        <Link href="/login" className="text-primary font-medium hover:underline">
-          Sign in
+        <Link href="/login" className="font-semibold hover:underline" style={{ color: 'var(--color-primary)' }}>
+          Sign in →
         </Link>
       </p>
     </form>

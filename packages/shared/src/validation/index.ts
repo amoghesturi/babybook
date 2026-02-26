@@ -22,6 +22,7 @@ export const MilestoneContentSchema = z.object({
   achieved_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   notes: z.string().max(2000).optional(),
   photo_storage_path: z.string().optional(),
+  video_storage_path: z.string().optional(),
 });
 
 export const PhotoItemSchema = z.object({
@@ -44,6 +45,8 @@ export const JournalContentSchema = z.object({
   mood: z.string().max(50).optional(),
   tags: z.array(z.string().max(30)).max(10).optional(),
   header_photo_storage_path: z.string().optional(),
+  voice_note_storage_path: z.string().optional(),
+  voice_note_duration_s: z.number().int().nonnegative().optional(),
 });
 
 export const LetterContentSchema = z.object({
@@ -56,6 +59,7 @@ export const MonthlySummaryContentSchema = z.object({
   year_month: z.string().regex(/^\d{4}-\d{2}$/),
   weight_kg: z.number().positive().max(50).optional(),
   height_cm: z.number().positive().max(200).optional(),
+  head_circumference_cm: z.number().positive().max(100).optional(),
   notes: z.string().max(2000).optional(),
   highlight_page_ids: z.array(z.string().uuid()).max(10).optional(),
 });
