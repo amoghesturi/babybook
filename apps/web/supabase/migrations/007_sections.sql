@@ -1,6 +1,6 @@
 -- ─── book_sections table ──────────────────────────────────────────────────────
 create table book_sections (
-  id           uuid primary key default uuid_generate_v4(),
+  id           uuid primary key default gen_random_uuid(),
   family_id    uuid not null references families(id) on delete cascade,
   child_id     uuid not null references children(id)  on delete cascade,
   name         text not null,

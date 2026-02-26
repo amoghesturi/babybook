@@ -1,9 +1,6 @@
--- Enable UUID extension
-create extension if not exists "uuid-ossp";
-
 -- ─── families ──────────────────────────────────────────────────────────────
 create table families (
-  id         uuid primary key default uuid_generate_v4(),
+  id         uuid primary key default gen_random_uuid(),
   name       text not null,
   theme_id   text not null default 'cotton-candy',
   created_at timestamptz not null default now()
@@ -11,7 +8,7 @@ create table families (
 
 -- ─── children ──────────────────────────────────────────────────────────────
 create table children (
-  id            uuid primary key default uuid_generate_v4(),
+  id            uuid primary key default gen_random_uuid(),
   family_id     uuid not null references families(id) on delete cascade,
   name          text not null,
   date_of_birth date not null,
@@ -24,7 +21,7 @@ create index children_family_id_idx on children(family_id);
 
 -- ─── family_members ────────────────────────────────────────────────────────
 create table family_members (
-  id             uuid primary key default uuid_generate_v4(),
+  id             uuid primary key default gen_random_uuid(),
   family_id      uuid not null references families(id) on delete cascade,
   user_id        uuid references auth.users(id) on delete set null,
   email          text not null,
@@ -40,7 +37,7 @@ create index family_members_invite_token_idx on family_members(invite_token);
 
 -- ─── book_pages ────────────────────────────────────────────────────────────
 create table book_pages (
-  id               uuid primary key default uuid_generate_v4(),
+  id               uuid primary key default gen_random_uuid(),
   family_id        uuid not null references families(id) on delete cascade,
   child_id         uuid not null references children(id) on delete cascade,
   page_type        text not null check (page_type in (
@@ -77,7 +74,7 @@ create trigger book_pages_updated_at
 
 -- ─── media ─────────────────────────────────────────────────────────────────
 create table media (
-  id           uuid primary key default uuid_generate_v4(),
+  id           uuid primary key default gen_random_uuid(),
   family_id    uuid not null references families(id) on delete cascade,
   child_id     uuid not null references children(id) on delete cascade,
   storage_path text not null,
