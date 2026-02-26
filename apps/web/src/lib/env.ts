@@ -14,9 +14,13 @@ const parsed = envSchema.safeParse({
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
 });
 
-if (!parsed.success) {
+// During `next build`, Next.js statically analyses every route (including
+// /_not-found) by evaluating their full module graph. If this module throws
+// at that point — before any request is handled — the build fails.
+// We defer the throw to request time by skipping it during the build phase.
+if (!parsed.success && process.env.NEXT_PHASE !== 'phase-production-build') {
   const missing = parsed.error.errors.map((e) => `  • ${e.path.join('.')}: ${e.message}`).join('\n');
   throw new Error(`Missing or invalid environment variables:\n${missing}`);
 }
 
-export const env = parsed.data;
+export const env = (parsed.data ?? {}) as z.infer<typeof envSchema>;
