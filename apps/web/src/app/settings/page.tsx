@@ -30,7 +30,7 @@ export default async function SettingsPage() {
       .single(),
     supabase
       .from('family_members')
-      .select('id, email, role, invite_status')
+      .select('id, email, role, invite_status, user_id')
       .eq('family_id', member.family_id)
       .order('created_at'),
     supabase

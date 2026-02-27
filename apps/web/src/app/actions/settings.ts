@@ -26,7 +26,7 @@ async function getOwnerContext() {
 
   if (!member || member.role !== 'owner') throw new Error('Not authorized');
 
-  return { supabase, familyId: member.family_id };
+  return { supabase, familyId: member.family_id, userId: user.id };
 }
 
 export async function updateFamilyName(name: string) {
@@ -116,4 +116,32 @@ export async function updateCoverPage(data: {
   if (error) throw new Error(error.message);
   revalidatePath('/settings');
   revalidatePath('/book');
+}
+
+export async function updateMemberRole(memberId: string, role: 'owner' | 'viewer') {
+  z.string().uuid('Invalid member ID').parse(memberId);
+  z.enum(['owner', 'viewer']).parse(role);
+
+  const { supabase, familyId, userId } = await getOwnerContext();
+  const admin = getAdminClient();
+
+  // Fetch the target member to verify they belong to the same family
+  const { data: target } = await supabase
+    .from('family_members')
+    .select('id, user_id')
+    .eq('id', memberId)
+    .eq('family_id', familyId)
+    .single();
+
+  if (!target) throw new Error('Member not found');
+  if (target.user_id === userId) throw new Error('You cannot change your own role');
+
+  const { error } = await admin
+    .from('family_members')
+    .update({ role })
+    .eq('id', memberId)
+    .eq('family_id', familyId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/settings');
 }

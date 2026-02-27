@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { THEMES } from '@babybook/shared';
 import type { ThemeId } from '@babybook/shared';
 import { updateTheme, inviteMember } from '@/app/actions/pages';
-import { updateFamilyName, updateChildDetails, updateCoverPage } from '@/app/actions/settings';
+import { updateFamilyName, updateChildDetails, updateCoverPage, updateMemberRole } from '@/app/actions/settings';
 import { useTheme } from '@/lib/hooks/useTheme';
 
 interface Family {
@@ -18,6 +18,7 @@ interface Member {
   email: string;
   role: string;
   invite_status: string;
+  user_id?: string | null;
 }
 
 interface Child {
@@ -40,7 +41,7 @@ interface Props {
   cover: Cover | null;
 }
 
-export function SettingsClient({ family, members, currentUserId: _, child, cover }: Props) {
+export function SettingsClient({ family, members, currentUserId, child, cover }: Props) {
   const [currentTheme, setCurrentTheme] = useState<ThemeId>(family.theme_id as ThemeId);
   const { applyTheme } = useTheme();
 
@@ -70,10 +71,13 @@ export function SettingsClient({ family, members, currentUserId: _, child, cover
 
   // Invite
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'viewer' | 'owner'>('viewer');
   const [inviting, setInviting] = useState(false);
   const [inviteResult, setInviteResult] = useState<{ url: string } | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [memberList, setMemberList] = useState<Member[]>(members);
+  // Per-member role-change state: memberId → 'saving' | 'error' | null
+  const [roleChangeState, setRoleChangeState] = useState<Record<string, 'saving' | 'error' | null>>({});
 
   async function handleThemeChange(themeId: ThemeId) {
     setCurrentTheme(themeId);
@@ -131,17 +135,30 @@ export function SettingsClient({ family, members, currentUserId: _, child, cover
     setInviteResult(null);
 
     try {
-      const result = await inviteMember(inviteEmail.trim());
+      const result = await inviteMember(inviteEmail.trim(), inviteRole);
       setInviteResult({ url: result.inviteUrl });
       setMemberList((prev) => [
         ...prev,
-        { id: Date.now().toString(), email: inviteEmail.trim(), role: 'viewer', invite_status: 'pending' },
+        { id: Date.now().toString(), email: inviteEmail.trim(), role: inviteRole, invite_status: 'pending' },
       ]);
       setInviteEmail('');
     } catch (e) {
       setInviteError(e instanceof Error ? e.message : 'Failed to send invite');
     } finally {
       setInviting(false);
+    }
+  }
+
+  async function handleRoleChange(memberId: string, newRole: 'owner' | 'viewer') {
+    setRoleChangeState((s) => ({ ...s, [memberId]: 'saving' }));
+    try {
+      await updateMemberRole(memberId, newRole);
+      setMemberList((prev) =>
+        prev.map((m) => (m.id === memberId ? { ...m, role: newRole } : m))
+      );
+      setRoleChangeState((s) => ({ ...s, [memberId]: null }));
+    } catch {
+      setRoleChangeState((s) => ({ ...s, [memberId]: 'error' }));
     }
   }
 
@@ -334,35 +351,74 @@ export function SettingsClient({ family, members, currentUserId: _, child, cover
 
         {/* Member list */}
         <div className="space-y-2 mb-6">
-          {memberList.map((m) => (
-            <div
-              key={m.id}
-              className="flex items-center gap-3 p-3 rounded-xl border"
-              style={{ borderColor: 'var(--color-border)' }}
-            >
-              <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
-                style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary-dark)' }}>
-                {m.email[0].toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate" style={{ color: 'var(--color-text-primary)' }}>
-                  {m.email}
-                </div>
-                <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                  {m.role} · {m.invite_status}
-                </div>
-              </div>
-              <span
-                className="text-xs px-2 py-0.5 rounded-full"
-                style={{
-                  background: m.role === 'owner' ? 'var(--color-primary-light)' : 'var(--color-secondary-light)',
-                  color: m.role === 'owner' ? 'var(--color-primary-dark)' : '#4a3520',
-                }}
+          {memberList.map((m) => {
+            const isSelf = m.user_id === currentUserId;
+            const saving = roleChangeState[m.id] === 'saving';
+            const roleError = roleChangeState[m.id] === 'error';
+            return (
+              <div
+                key={m.id}
+                className="flex items-center gap-3 p-3 rounded-xl border"
+                style={{ borderColor: 'var(--color-border)' }}
               >
-                {m.role}
-              </span>
-            </div>
-          ))}
+                <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
+                  style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary-dark)' }}>
+                  {m.email[0].toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium truncate" style={{ color: 'var(--color-text-primary)' }}>
+                      {m.email}
+                    </span>
+                    {isSelf && (
+                      <span className="text-xs px-1.5 py-0.5 rounded-full flex-shrink-0"
+                        style={{ background: 'var(--color-border)', color: 'var(--color-text-secondary)' }}>
+                        you
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                    {m.invite_status === 'pending' ? 'Invite pending' : 'Active'}
+                    {roleError && <span className="ml-2 text-red-500">· Failed to update</span>}
+                  </div>
+                </div>
+
+                {/* Role selector — disabled for self */}
+                {isSelf ? (
+                  <span
+                    className="text-xs px-2 py-1 rounded-full font-medium"
+                    style={{
+                      background: m.role === 'owner' ? 'var(--color-primary-light)' : 'var(--color-secondary-light)',
+                      color: m.role === 'owner' ? 'var(--color-primary-dark)' : '#4a3520',
+                    }}
+                  >
+                    {m.role}
+                  </span>
+                ) : (
+                  <select
+                    value={m.role}
+                    disabled={saving}
+                    onChange={(e) => handleRoleChange(m.id, e.target.value as 'owner' | 'viewer')}
+                    className="text-xs border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
+                    style={{
+                      borderColor: 'var(--color-border)',
+                      background: 'var(--color-background)',
+                      color: 'var(--color-text-primary)',
+                    }}
+                    title="Change role"
+                  >
+                    <option value="viewer">Viewer</option>
+                    <option value="owner">Owner</option>
+                  </select>
+                )}
+                {saving && (
+                  <span className="text-xs flex-shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
+                    Saving…
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* Invite form */}
@@ -379,15 +435,27 @@ export function SettingsClient({ family, members, currentUserId: _, child, cover
               className="flex-1 px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
             />
+            <select
+              value={inviteRole}
+              onChange={(e) => setInviteRole(e.target.value as 'viewer' | 'owner')}
+              className="px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)', color: 'var(--color-text-primary)' }}
+            >
+              <option value="viewer">Viewer</option>
+              <option value="owner">Owner</option>
+            </select>
             <button
               type="submit"
               disabled={inviting || !inviteEmail.trim()}
-              className="px-4 py-2 rounded-xl text-sm font-medium text-white transition disabled:opacity-60"
+              className="px-4 py-2 rounded-xl text-sm font-medium text-white transition disabled:opacity-60 flex-shrink-0"
               style={{ background: 'var(--color-primary)' }}
             >
               {inviting ? 'Sending…' : 'Invite'}
             </button>
           </div>
+          <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+            <strong>Viewer</strong> — can read the book. <strong>Owner</strong> — can add pages, invite others, and edit settings.
+          </p>
 
           {inviteError && (
             <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">

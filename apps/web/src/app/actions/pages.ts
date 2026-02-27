@@ -152,8 +152,9 @@ export async function updateSortOrder(
   revalidatePath('/book/[pageId]', 'page');
 }
 
-export async function inviteMember(email: string) {
+export async function inviteMember(email: string, role: 'owner' | 'viewer' = 'viewer') {
   const { email: validEmail } = z.object({ email: z.string().email('Invalid email address') }).parse({ email });
+  z.enum(['owner', 'viewer']).parse(role);
   const { supabase, familyId } = await getOwnerContext();
 
   const token = crypto.randomUUID();
@@ -163,7 +164,7 @@ export async function inviteMember(email: string) {
     .insert({
       family_id: familyId,
       email: validEmail,
-      role: 'viewer',
+      role,
       invite_token: token,
       invite_status: 'pending',
     });
