@@ -13,6 +13,14 @@ interface Props {
   variant?: MilestoneVariant;
 }
 
+function formatMilestoneDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 function getAgeAtMilestone(dob: string, achieved: string): string {
   const birth = new Date(dob);
   const achieved_date = new Date(achieved);
@@ -39,7 +47,9 @@ function getMilestoneEmoji(milestoneName: string, category: string): string {
 // ── Badge variant ─────────────────────────────────────────────────────────────
 function MilestoneBadge({ content, childName, childDob, pageDate }: Omit<Props, 'variant'>) {
   const emoji = getMilestoneEmoji(content.milestone_name, content.category);
-  const ageLabel = childDob ? getAgeAtMilestone(childDob, content.achieved_at || pageDate) : '';
+  const achievedDate = content.achieved_at || pageDate;
+  const ageLabel = childDob ? getAgeAtMilestone(childDob, achievedDate) : '';
+  const dateLabel = formatMilestoneDate(achievedDate);
   const catInfo = MILESTONE_CATEGORIES.find((c) => c.id === content.category);
 
   return (
@@ -53,7 +63,7 @@ function MilestoneBadge({ content, childName, childDob, pageDate }: Omit<Props, 
         `,
       }}
     >
-      {/* Category + age chips */}
+      {/* Category + age + date chips */}
       <div className="flex items-center gap-2 flex-wrap justify-center">
         {catInfo && (
           <div
@@ -71,6 +81,16 @@ function MilestoneBadge({ content, childName, childDob, pageDate }: Omit<Props, 
             {ageLabel}
           </div>
         )}
+        <div
+          className="px-3 py-1 rounded-full text-xs font-medium"
+          style={{
+            background: 'var(--color-background)',
+            color: 'var(--color-text-secondary)',
+            border: '1px solid var(--color-border)',
+          }}
+        >
+          {dateLabel}
+        </div>
       </div>
 
       {/* Large gradient circle badge */}
@@ -174,7 +194,9 @@ function MilestoneBadge({ content, childName, childDob, pageDate }: Omit<Props, 
 // ── Certificate variant ───────────────────────────────────────────────────────
 function MilestoneCertificate({ content, childName, childDob, pageDate }: Omit<Props, 'variant'>) {
   const emoji = getMilestoneEmoji(content.milestone_name, content.category);
-  const ageLabel = childDob ? getAgeAtMilestone(childDob, content.achieved_at || pageDate) : '';
+  const achievedDate = content.achieved_at || pageDate;
+  const ageLabel = childDob ? getAgeAtMilestone(childDob, achievedDate) : '';
+  const dateLabel = formatMilestoneDate(achievedDate);
 
   return (
     <div
@@ -258,6 +280,9 @@ function MilestoneCertificate({ content, childName, childDob, pageDate }: Omit<P
             at {ageLabel}
           </p>
         )}
+        <p className="font-handwritten text-base" style={{ color: '#b8914a', opacity: 0.85 }}>
+          {dateLabel}
+        </p>
 
         {/* Divider flourish */}
         <div className="flex items-center gap-3 w-full max-w-xs">
@@ -306,7 +331,9 @@ function MilestoneCertificate({ content, childName, childDob, pageDate }: Omit<P
 function MilestoneClassic({ content, childName, childDob, pageDate }: Omit<Props, 'variant'>) {
   const [showConfetti, setShowConfetti] = useState(false);
   const emoji = getMilestoneEmoji(content.milestone_name, content.category);
-  const ageLabel = childDob ? getAgeAtMilestone(childDob, content.achieved_at || pageDate) : '';
+  const achievedDate = content.achieved_at || pageDate;
+  const ageLabel = childDob ? getAgeAtMilestone(childDob, achievedDate) : '';
+  const dateLabel = formatMilestoneDate(achievedDate);
 
   useEffect(() => {
     const key = `milestone-confetti-seen-${content.milestone_name}`;
@@ -422,19 +449,31 @@ function MilestoneClassic({ content, childName, childDob, pageDate }: Omit<Props
         {catInfo?.emoji} {catInfo?.label}
       </div>
 
-      {/* Age badge */}
-      {ageLabel && (
+      {/* Age + date badges stacked top-right */}
+      <div className="absolute top-6 right-6 flex flex-col items-end gap-1.5">
+        {ageLabel && (
+          <div
+            className="px-3 py-1.5 rounded-full text-xs font-bold"
+            style={{
+              background: 'var(--color-secondary)',
+              color: 'white',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            }}
+          >
+            {ageLabel}
+          </div>
+        )}
         <div
-          className="absolute top-6 right-6 px-3 py-1.5 rounded-full text-xs font-bold"
+          className="px-3 py-1 rounded-full text-xs font-medium"
           style={{
-            background: 'var(--color-secondary)',
-            color: 'white',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            background: 'var(--color-background)',
+            color: 'var(--color-text-secondary)',
+            border: '1px solid var(--color-border)',
           }}
         >
-          {ageLabel}
+          {dateLabel}
         </div>
-      )}
+      </div>
 
       {/* Main content */}
       <div className="relative z-10 px-8 py-10 flex flex-col items-center">
