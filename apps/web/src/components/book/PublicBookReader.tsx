@@ -1,0 +1,142 @@
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { PageFlip } from './PageFlip';
+import { PageRenderer } from './PageRenderer';
+import type { BookPage, NavigationInfo } from '@babybook/shared';
+
+interface Props {
+  page: BookPage;
+  nav: NavigationInfo;
+  childName: string;
+  childDob: string;
+  sectionName?: string | null;
+  token: string;
+}
+
+export function PublicBookReader({ page, nav, childName, childDob, sectionName, token }: Props) {
+  const router = useRouter();
+  const [direction, setDirection] = useState<'next' | 'prev'>('next');
+
+  const goToPage = useCallback(
+    (pageId: string, dir: 'next' | 'prev') => {
+      setDirection(dir);
+      router.push(`/share/${token}/${pageId}`);
+    },
+    [router, token]
+  );
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'ArrowLeft' && nav.prevPageId) {
+        goToPage(nav.prevPageId, 'prev');
+      } else if (e.key === 'ArrowRight' && nav.nextPageId) {
+        goToPage(nav.nextPageId, 'next');
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [nav, goToPage]);
+
+  useEffect(() => {
+    let startX = 0;
+    function handleTouchStart(e: TouchEvent) {
+      startX = e.touches[0].clientX;
+    }
+    function handleTouchEnd(e: TouchEvent) {
+      const deltaX = e.changedTouches[0].clientX - startX;
+      if (Math.abs(deltaX) < 50) return;
+      if (deltaX < 0 && nav.nextPageId) {
+        goToPage(nav.nextPageId, 'next');
+      } else if (deltaX > 0 && nav.prevPageId) {
+        goToPage(nav.prevPageId, 'prev');
+      }
+    }
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [nav, goToPage]);
+
+  return (
+    <div className="min-h-dvh bg-background flex flex-col">
+      {/* Top bar — read-only, no edit/manage/settings/logout */}
+      <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface/80 backdrop-blur-sm sticky top-0 z-10">
+        <div className="flex flex-col min-w-0">
+          <span className="font-display text-lg font-semibold text-primary truncate leading-tight">
+            {childName ? `${childName}'s Baby Book` : 'Baby Book'}
+          </span>
+          {sectionName && (
+            <span className="text-xs truncate leading-tight" style={{ color: 'var(--color-text-secondary)' }}>
+              {sectionName}
+            </span>
+          )}
+        </div>
+        {/* No buttons — purely read-only */}
+      </header>
+
+      {/* Book area */}
+      <main className="flex-1 flex flex-col items-center justify-center px-4 py-6 gap-4">
+        <div className="w-full max-w-2xl relative">
+          <button
+            onClick={() => nav.prevPageId && goToPage(nav.prevPageId, 'prev')}
+            disabled={!nav.prevPageId}
+            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 md:-translate-x-12 z-10 w-10 h-10 rounded-full bg-surface shadow-md flex items-center justify-center text-text-secondary hover:text-primary hover:shadow-lg disabled:opacity-20 disabled:cursor-not-allowed transition"
+            aria-label="Previous page"
+          >
+            ◀
+          </button>
+
+          <PageFlip pageId={page.id} direction={direction}>
+            <div className="book-page min-h-[500px] md:min-h-[600px] w-full">
+              <PageRenderer
+                page={page}
+                childName={childName}
+                childDob={childDob}
+                isOwner={false}
+              />
+            </div>
+          </PageFlip>
+
+          <button
+            onClick={() => nav.nextPageId && goToPage(nav.nextPageId, 'next')}
+            disabled={!nav.nextPageId}
+            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 md:translate-x-12 z-10 w-10 h-10 rounded-full bg-surface shadow-md flex items-center justify-center text-text-secondary hover:text-primary hover:shadow-lg disabled:opacity-20 disabled:cursor-not-allowed transition"
+            aria-label="Next page"
+          >
+            ▶
+          </button>
+        </div>
+
+        {/* Page counter — no add/manage buttons */}
+        <div className="flex flex-col items-center gap-3 w-full max-w-2xl">
+          <span className="text-sm text-text-secondary">
+            Page {nav.currentIndex + 1} of {nav.totalPages}
+          </span>
+          <div className="flex gap-1.5 items-center">
+            {nav.totalPages <= 20
+              ? Array.from({ length: nav.totalPages }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={`rounded-full transition-all duration-200 ${
+                      i === nav.currentIndex ? 'w-4 h-2 bg-primary' : 'w-2 h-2 bg-border'
+                    }`}
+                  />
+                ))
+              : (
+                <div className="w-32 h-1.5 bg-border rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all"
+                    style={{ width: `${((nav.currentIndex + 1) / nav.totalPages) * 100}%` }}
+                  />
+                </div>
+              )}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}

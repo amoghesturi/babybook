@@ -118,6 +118,33 @@ export async function updateCoverPage(data: {
   revalidatePath('/book');
 }
 
+export async function toggleSharing(enabled: boolean) {
+  z.boolean().parse(enabled);
+  const { familyId } = await getOwnerContext();
+  const admin = getAdminClient();
+
+  const { error } = await admin
+    .from('families')
+    .update({ sharing_enabled: enabled })
+    .eq('id', familyId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/settings');
+}
+
+export async function regenerateShareToken() {
+  const { familyId } = await getOwnerContext();
+  const admin = getAdminClient();
+
+  const { error } = await admin
+    .from('families')
+    .update({ share_token: crypto.randomUUID() })
+    .eq('id', familyId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/settings');
+}
+
 export async function updateMemberRole(memberId: string, role: 'owner' | 'viewer') {
   z.string().uuid('Invalid member ID').parse(memberId);
   z.enum(['owner', 'viewer']).parse(role);

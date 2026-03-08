@@ -25,7 +25,7 @@ export default async function SettingsPage() {
   ] = await Promise.all([
     supabase
       .from('families')
-      .select('id, name, theme_id')
+      .select('id, name, theme_id, share_token, sharing_enabled')
       .eq('id', member.family_id)
       .single(),
     supabase

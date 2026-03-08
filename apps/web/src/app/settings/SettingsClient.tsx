@@ -4,13 +4,15 @@ import { useState } from 'react';
 import { THEMES } from '@babybook/shared';
 import type { ThemeId } from '@babybook/shared';
 import { updateTheme, inviteMember } from '@/app/actions/pages';
-import { updateFamilyName, updateChildDetails, updateCoverPage, updateMemberRole } from '@/app/actions/settings';
+import { updateFamilyName, updateChildDetails, updateCoverPage, updateMemberRole, toggleSharing, regenerateShareToken } from '@/app/actions/settings';
 import { useTheme } from '@/lib/hooks/useTheme';
 
 interface Family {
   id: string;
   name: string;
   theme_id: string;
+  share_token: string;
+  sharing_enabled: boolean;
 }
 
 interface Member {
@@ -68,6 +70,45 @@ export function SettingsClient({ family, members, currentUserId, child, cover }:
   );
   const [savingCover, setSavingCover] = useState(false);
   const [coverStatus, setCoverStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+
+  // Sharing
+  const [sharingEnabled, setSharingEnabled] = useState(family.sharing_enabled);
+  const [shareToken, setShareToken] = useState(family.share_token);
+  const [togglingShare, setTogglingShare] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+
+  const shareUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/share/${shareToken}`
+    : `/share/${shareToken}`;
+
+  async function handleToggleSharing(enabled: boolean) {
+    setTogglingShare(true);
+    try {
+      await toggleSharing(enabled);
+      setSharingEnabled(enabled);
+    } finally {
+      setTogglingShare(false);
+    }
+  }
+
+  async function handleRegenerate() {
+    if (!confirm('This will invalidate the current link. Anyone with the old link will lose access. Continue?')) return;
+    setRegenerating(true);
+    try {
+      await regenerateShareToken();
+      // Reload to get the new token from the server
+      window.location.reload();
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
+  function handleCopyShareUrl() {
+    navigator.clipboard.writeText(shareUrl);
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2000);
+  }
 
   // Invite
   const [inviteEmail, setInviteEmail] = useState('');
@@ -340,6 +381,74 @@ export function SettingsClient({ family, members, currentUserId, child, cover }:
               )}
             </button>
           ))}
+        </div>
+      </section>
+
+      {/* Public sharing */}
+      <section className="bg-surface rounded-2xl p-6 border" style={{ borderColor: 'var(--color-border)' }}>
+        <h2 className="font-display font-bold text-xl mb-1" style={{ color: 'var(--color-text-primary)' }}>
+          🔗 Share Book
+        </h2>
+        <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>
+          Generate a read-only link so friends and family can view published pages without an account.
+        </p>
+
+        {/* Toggle */}
+        <div className="flex items-center justify-between p-4 rounded-xl border mb-4" style={{ borderColor: 'var(--color-border)' }}>
+          <div>
+            <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
+              {sharingEnabled ? 'Sharing is on' : 'Sharing is off'}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
+              {sharingEnabled
+                ? 'Anyone with the link can view published pages.'
+                : 'The link exists but is currently blocked — no one can view the book.'}
+            </p>
+          </div>
+          <button
+            onClick={() => handleToggleSharing(!sharingEnabled)}
+            disabled={togglingShare}
+            className="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
+            style={{ background: sharingEnabled ? 'var(--color-primary)' : 'var(--color-border)' }}
+            role="switch"
+            aria-checked={sharingEnabled}
+          >
+            <span
+              className="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition"
+              style={{ transform: sharingEnabled ? 'translateX(20px)' : 'translateX(0)' }}
+            />
+          </button>
+        </div>
+
+        {/* Link row — always shown so owner can copy/revoke even when disabled */}
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <input
+              readOnly
+              value={shareUrl}
+              className="flex-1 px-3 py-2 border rounded-xl text-xs font-mono truncate focus:outline-none"
+              style={{
+                borderColor: 'var(--color-border)',
+                background: sharingEnabled ? 'var(--color-background)' : 'var(--color-border)',
+                color: sharingEnabled ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+              }}
+            />
+            <button
+              onClick={handleCopyShareUrl}
+              className="px-3 py-2 rounded-xl text-sm font-medium transition flex-shrink-0"
+              style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary-dark)' }}
+            >
+              {shareCopied ? '✓ Copied' : 'Copy'}
+            </button>
+          </div>
+          <button
+            onClick={handleRegenerate}
+            disabled={regenerating}
+            className="text-xs underline disabled:opacity-60 transition"
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
+            {regenerating ? 'Regenerating…' : 'Revoke & generate new link'}
+          </button>
         </div>
       </section>
 
