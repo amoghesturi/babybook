@@ -1,4 +1,4 @@
-import type { PageType } from '../types/index';
+import type { PageType, SectionType } from '../types/index';
 
 export interface TemplateVariantMeta {
   id: string;
@@ -13,6 +13,8 @@ export interface PageTemplate {
   emoji: string;
   defaultVariant: string;
   variants: TemplateVariantMeta[];
+  /** For section_title pages: which section_type values show variant options (only 'custom') */
+  variantSectionTypes?: SectionType[];
 }
 
 export const PAGE_TEMPLATES: PageTemplate[] = [
@@ -98,6 +100,18 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
       { id: 'classic',     label: 'Classic',     description: 'Giant ghost month text background' },
       { id: 'infographic', label: 'Infographic', description: 'Stats-forward card grid layout' },
       { id: 'clean',       label: 'Clean',       description: 'Minimal white card, subtle stats' },
+    ],
+  },
+  {
+    type: 'section_title',
+    label: 'Section Title',
+    description: 'A decorative divider page for the section',
+    emoji: '📑',
+    defaultVariant: 'elegant',
+    variantSectionTypes: ['custom'],
+    variants: [
+      { id: 'elegant', label: 'Elegant', description: 'Minimal monogram style with decorative rules' },
+      { id: 'playful', label: 'Playful', description: 'Bold color fills with circle confetti' },
     ],
   },
 ];

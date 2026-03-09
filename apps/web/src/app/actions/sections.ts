@@ -93,6 +93,35 @@ export async function createSection(
 
   let pageSortOrder = (lastPage?.sort_order ?? -1) + 1;
 
+  // Determine the date for the section title page
+  // Use the first preset page's date (or childDob if no presets)
+  let titlePageDate: string;
+  if (meta.presetPages.length > 0) {
+    const firstPreset = meta.presetPages[0];
+    if (firstPreset.page_type === 'monthly_summary' && firstPreset.month_offset != null) {
+      titlePageDate = `${addMonths(childDob, firstPreset.month_offset)}-01`;
+    } else if (firstPreset.page_type === 'birth_story') {
+      titlePageDate = childDob;
+    } else {
+      titlePageDate = new Date().toISOString().split('T')[0];
+    }
+  } else {
+    titlePageDate = new Date().toISOString().split('T')[0];
+  }
+
+  // Insert the section title page first (lowest sort_order in section)
+  await admin.from('book_pages').insert({
+    family_id: familyId,
+    child_id: childId,
+    page_type: 'section_title',
+    page_date: titlePageDate,
+    sort_order: pageSortOrder++,
+    status: 'draft',
+    template_variant: sectionType === 'custom' ? 'elegant' : 'default',
+    content: { section_type: sectionType, section_name: name },
+    section_id: section.id,
+  });
+
   // Insert preset pages as drafts
   for (const preset of meta.presetPages) {
     let pageDate: string;
@@ -130,6 +159,7 @@ export async function renameSection(sectionId: string, name: string): Promise<vo
   uuidSchema.parse(sectionId);
   z.string().min(1, 'Name is required').max(200).parse(name);
   const { supabase, familyId } = await getOwnerContext();
+  const admin = getAdminClient();
 
   const { error } = await supabase
     .from('book_sections')
@@ -138,6 +168,26 @@ export async function renameSection(sectionId: string, name: string): Promise<vo
     .eq('family_id', familyId);
 
   if (error) throw new Error(error.message);
+
+  // Fetch existing section_title page content to preserve section_type
+  const { data: titlePage } = await supabase
+    .from('book_pages')
+    .select('content')
+    .eq('section_id', sectionId)
+    .eq('page_type', 'section_title')
+    .eq('family_id', familyId)
+    .single();
+
+  if (titlePage) {
+    const existing = titlePage.content as { section_type: string; section_name: string };
+    await admin
+      .from('book_pages')
+      .update({ content: { section_type: existing.section_type, section_name: name.trim() } })
+      .eq('section_id', sectionId)
+      .eq('page_type', 'section_title')
+      .eq('family_id', familyId);
+  }
+
   revalidatePath('/book/manage');
 }
 

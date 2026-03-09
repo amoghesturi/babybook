@@ -9,7 +9,7 @@ import { AddPageModal } from '@/components/editors/AddPageModal';
 import { EditPageModal } from '@/components/editors/EditPageModal';
 import { ChangeTemplateModal } from './ChangeTemplateModal';
 import { LogoutButton } from '@/components/ui/LogoutButton';
-import type { BookPage, NavigationInfo } from '@babybook/shared';
+import type { BookPage, NavigationInfo, SectionTitleContent } from '@babybook/shared';
 
 interface Props {
   page: BookPage;
@@ -202,6 +202,7 @@ export function BookReader({ page, nav, isOwner, childName, childDob, sectionNam
           pageType={page.page_type}
           currentVariant={page.template_variant ?? 'classic'}
           onClose={() => setShowChangeTemplate(false)}
+          pageContent={page.page_type === 'section_title' ? page.content as SectionTitleContent : undefined}
         />
       )}
     </div>

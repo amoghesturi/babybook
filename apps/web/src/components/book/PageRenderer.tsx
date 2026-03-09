@@ -1,4 +1,4 @@
-import type { BookPage, CoverVariant, BirthStoryVariant, MilestoneVariant, JournalVariant, LetterVariant, MonthlySummaryVariant } from '@babybook/shared';
+import type { BookPage, CoverVariant, BirthStoryVariant, MilestoneVariant, JournalVariant, LetterVariant, MonthlySummaryVariant, SectionTitleVariant, SectionTitleContent } from '@babybook/shared';
 import { CoverPage } from '@/components/templates/CoverPage';
 import { BirthStoryPage } from '@/components/templates/BirthStoryPage';
 import { MilestonePage } from '@/components/templates/MilestonePage';
@@ -6,6 +6,7 @@ import { PhotoSpreadPage } from '@/components/templates/PhotoSpreadPage';
 import { JournalPage } from '@/components/templates/JournalPage';
 import { LetterPage } from '@/components/templates/LetterPage';
 import { MonthlySummaryPage } from '@/components/templates/MonthlySummaryPage';
+import { SectionTitlePage } from '@/components/templates/SectionTitlePage';
 
 interface Props {
   page: BookPage;
@@ -82,6 +83,14 @@ export function PageRenderer({ page, childName, childDob, isOwner }: Props) {
           childName={childName}
           childDob={childDob}
           variant={variant as MonthlySummaryVariant}
+        />
+      );
+
+    case 'section_title':
+      return (
+        <SectionTitlePage
+          content={page.content as SectionTitleContent}
+          variant={(page.template_variant as SectionTitleVariant) ?? 'default'}
         />
       );
 

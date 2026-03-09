@@ -123,7 +123,7 @@ function SortablePageCard({
           </select>
         )}
 
-        {page.page_type !== 'cover' && (
+        {page.page_type !== 'cover' && page.page_type !== 'section_title' && (
           <button
             onClick={() => onEdit(page)}
             className="px-3 py-1.5 text-xs rounded-lg border transition hover:bg-border/30"

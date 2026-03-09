@@ -5,7 +5,8 @@ export type PageType =
   | 'photo_spread'
   | 'journal'
   | 'letter'
-  | 'monthly_summary';
+  | 'monthly_summary'
+  | 'section_title';
 
 export type PageStatus = 'draft' | 'published';
 
@@ -26,6 +27,7 @@ export type JournalVariant        = 'classic' | 'clean' | 'vibrant';
 export type LetterVariant         = 'classic' | 'modern' | 'postcard';
 export type MonthlySummaryVariant = 'classic' | 'infographic' | 'clean';
 export type PhotoSpreadVariant    = 'single' | 'grid' | 'polaroid';
+export type SectionTitleVariant   = 'default' | 'elegant' | 'playful';
 
 export type TemplateVariant =
   | CoverVariant
@@ -34,7 +36,8 @@ export type TemplateVariant =
   | JournalVariant
   | LetterVariant
   | MonthlySummaryVariant
-  | PhotoSpreadVariant;
+  | PhotoSpreadVariant
+  | SectionTitleVariant;
 
 // ─── Section types ───────────────────────────────────────────────────────────
 
@@ -121,6 +124,11 @@ export interface MonthlySummaryContent {
   highlight_page_ids?: string[];
 }
 
+export interface SectionTitleContent {
+  section_type: SectionType;
+  section_name: string;
+}
+
 export type PageContent =
   | CoverContent
   | BirthStoryContent
@@ -128,7 +136,8 @@ export type PageContent =
   | PhotoSpreadContent
   | JournalContent
   | LetterContent
-  | MonthlySummaryContent;
+  | MonthlySummaryContent
+  | SectionTitleContent;
 
 // ─── Growth chart ────────────────────────────────────────────────────────────
 
