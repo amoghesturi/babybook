@@ -38,6 +38,12 @@ export function BookReader({ page, nav, isOwner, childName, childDob, sectionNam
     [router]
   );
 
+  // Prefetch prev/next pages so navigation feels instant
+  useEffect(() => {
+    if (nav.prevPageId) router.prefetch(`/book/${nav.prevPageId}`);
+    if (nav.nextPageId && nav.nextPageId !== 'growth') router.prefetch(`/book/${nav.nextPageId}`);
+  }, [nav, router]);
+
   // Keyboard navigation
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
