@@ -147,8 +147,9 @@ export interface GrowthDataPoint {
   weight_kg?: number;
   height_cm?: number;
   head_circumference_cm?: number;
-  source: 'birth_story' | 'monthly_summary';
-  page_id: string;
+  source: 'birth_story' | 'monthly_summary' | 'direct';
+  page_id: string | null;
+  measurement_id?: string;
 }
 
 // ─── Database row types ─────────────────────────────────────────────────────

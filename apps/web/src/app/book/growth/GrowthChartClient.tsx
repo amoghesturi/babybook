@@ -15,6 +15,8 @@ import type { GrowthDataPoint } from '@babybook/shared';
 
 interface Props {
   dataPoints: GrowthDataPoint[];
+  isOwner: boolean;
+  onLogMeasurement: () => void;
 }
 
 type Metric = 'weight' | 'height' | 'head';
@@ -35,6 +37,12 @@ function ageLabel(months: number) {
 
 function formatDate(isoDate: string) {
   return new Date(isoDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
+function sourceLabel(source: GrowthDataPoint['source']) {
+  if (source === 'birth_story') return 'Birth story';
+  if (source === 'monthly_summary') return 'Monthly summary';
+  return 'Direct measurement';
 }
 
 function CustomTooltip({
@@ -64,13 +72,13 @@ function CustomTooltip({
         </p>
       )}
       <p className="text-xs mt-1 opacity-60" style={{ color: 'var(--color-text-secondary)' }}>
-        {pt.source === 'birth_story' ? 'Birth story' : 'Monthly summary'}
+        {sourceLabel(pt.source)}
       </p>
     </div>
   );
 }
 
-export function GrowthChartClient({ dataPoints }: Props) {
+export function GrowthChartClient({ dataPoints, isOwner, onLogMeasurement }: Props) {
   const [activeMetric, setActiveMetric] = useState<Metric>('weight');
   const router = useRouter();
 
@@ -81,26 +89,41 @@ export function GrowthChartClient({ dataPoints }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Metric tabs */}
-      <div className="flex gap-2 flex-wrap">
-        {METRICS.map((m) => {
-          const hasData = dataPoints.some((pt) => (pt[m.dataKey] as number | undefined) != null);
-          return (
-            <button
-              key={m.id}
-              onClick={() => setActiveMetric(m.id)}
-              disabled={!hasData}
-              className="px-4 py-2 rounded-full text-sm font-medium border transition disabled:opacity-40"
-              style={{
-                borderColor: activeMetric === m.id ? m.color : 'var(--color-border)',
-                background: activeMetric === m.id ? `${m.color}15` : undefined,
-                color: activeMetric === m.id ? m.color : 'var(--color-text-secondary)',
-              }}
-            >
-              {m.label} ({m.unit})
-            </button>
-          );
-        })}
+      {/* Metric tabs + Log button row */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap">
+          {METRICS.map((m) => {
+            const hasData = dataPoints.some((pt) => (pt[m.dataKey] as number | undefined) != null);
+            return (
+              <button
+                key={m.id}
+                onClick={() => setActiveMetric(m.id)}
+                disabled={!hasData}
+                className="px-4 py-2 rounded-full text-sm font-medium border transition disabled:opacity-40"
+                style={{
+                  borderColor: activeMetric === m.id ? m.color : 'var(--color-border)',
+                  background: activeMetric === m.id ? `${m.color}15` : undefined,
+                  color: activeMetric === m.id ? m.color : 'var(--color-text-secondary)',
+                }}
+              >
+                {m.label} ({m.unit})
+              </button>
+            );
+          })}
+        </div>
+        {isOwner && dataPoints.length > 0 && (
+          <button
+            onClick={onLogMeasurement}
+            className="px-3 py-1.5 rounded-full text-sm font-medium border transition"
+            style={{
+              borderColor: 'var(--color-primary)',
+              color: 'var(--color-primary)',
+              background: 'var(--color-primary-light, transparent)',
+            }}
+          >
+            + Log Measurement
+          </button>
+        )}
       </div>
 
       {/* Chart */}
@@ -111,11 +134,20 @@ export function GrowthChartClient({ dataPoints }: Props) {
         >
           <div className="text-4xl">📊</div>
           <p className="font-medium" style={{ color: 'var(--color-text-primary)' }}>
-            Not enough data yet
+            No measurements yet
           </p>
           <p className="text-sm max-w-xs" style={{ color: 'var(--color-text-secondary)' }}>
-            Add a birth story and at least one monthly summary with {meta.label.toLowerCase()} measurements to see the chart.
+            Log your baby&apos;s measurements to see the growth chart.
           </p>
+          {isOwner && (
+            <button
+              onClick={onLogMeasurement}
+              className="mt-2 px-5 py-2 rounded-full text-sm font-semibold text-white transition"
+              style={{ background: 'var(--color-primary)' }}
+            >
+              + Log Measurement
+            </button>
+          )}
         </div>
       ) : (
         <div
@@ -135,9 +167,9 @@ export function GrowthChartClient({ dataPoints }: Props) {
               onClick={(e) => {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const pt = (e as any)?.activePayload?.[0]?.payload as GrowthDataPoint | undefined;
-                if (pt) router.push(`/book/${pt.page_id}`);
+                if (pt?.page_id) router.push(`/book/${pt.page_id}`);
               }}
-              style={{ cursor: 'pointer' }}
+              style={{ cursor: 'default' }}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
@@ -173,7 +205,7 @@ export function GrowthChartClient({ dataPoints }: Props) {
             </LineChart>
           </ResponsiveContainer>
           <p className="text-xs mt-3 text-center" style={{ color: 'var(--color-text-secondary)' }}>
-            Tap a point to open that page
+            Tap a point from a monthly summary to open that page
           </p>
         </div>
       )}
@@ -195,10 +227,10 @@ export function GrowthChartClient({ dataPoints }: Props) {
             <tbody>
               {chartData.map((pt, i) => (
                 <tr
-                  key={pt.page_id}
-                  className="cursor-pointer hover:bg-border/20 transition"
+                  key={pt.measurement_id ?? pt.page_id ?? i}
+                  className={pt.page_id ? 'cursor-pointer hover:bg-border/20 transition' : 'transition'}
                   style={{ borderTop: i > 0 ? '1px solid var(--color-border)' : undefined }}
-                  onClick={() => router.push(`/book/${pt.page_id}`)}
+                  onClick={() => { if (pt.page_id) router.push(`/book/${pt.page_id}`); }}
                 >
                   <td className="px-4 py-3 font-medium" style={{ color: 'var(--color-text-primary)' }}>
                     {ageLabel(pt.age_months)}

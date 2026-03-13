@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { GrowthChartClient } from './GrowthChartClient';
+import { GrowthPageClient } from './GrowthPageClient';
 import { LogoutButton } from '@/components/ui/LogoutButton';
 import type { GrowthDataPoint, BirthStoryContent, MonthlySummaryContent } from '@babybook/shared';
 
@@ -58,6 +58,13 @@ export default async function GrowthPage() {
 
   const { data: pages } = await pagesQuery;
 
+  // Fetch direct measurements
+  const { data: directMeasurements } = await supabase
+    .from('growth_measurements')
+    .select('*')
+    .eq('family_id', member.family_id)
+    .order('measured_at', { ascending: true });
+
   // Build GrowthDataPoint array
   const dobStr = child?.date_of_birth;
   const dobDate = dobStr ? new Date(dobStr + 'T12:00:00') : null;
@@ -96,6 +103,28 @@ export default async function GrowthPage() {
         page_id: page.id,
       });
     }
+  }
+
+  // Map direct measurements to GrowthDataPoints
+  for (const dm of directMeasurements ?? []) {
+    let age_months = 0;
+    if (dobDate && dm.measured_at) {
+      const measuredDate = new Date(dm.measured_at + 'T12:00:00');
+      age_months =
+        (measuredDate.getFullYear() - dobDate.getFullYear()) * 12 +
+        (measuredDate.getMonth() - dobDate.getMonth());
+    }
+
+    points.push({
+      age_months,
+      date: dm.measured_at,
+      weight_kg: dm.weight_kg ?? undefined,
+      height_cm: dm.height_cm ?? undefined,
+      head_circumference_cm: dm.head_circumference_cm ?? undefined,
+      source: 'direct',
+      page_id: null,
+      measurement_id: dm.id,
+    });
   }
 
   // Deduplicate by age_months, keeping the richer row
@@ -173,7 +202,7 @@ export default async function GrowthPage() {
             </div>
 
             <div className="p-6">
-              <GrowthChartClient dataPoints={dataPoints} />
+              <GrowthPageClient dataPoints={dataPoints} isOwner={isOwner} />
             </div>
           </div>
 
