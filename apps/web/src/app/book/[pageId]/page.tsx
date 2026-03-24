@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { getUser } from '@/lib/supabase/getUser';
 import { notFound, redirect } from 'next/navigation';
-import { unstable_cache } from 'next/cache';
 import { BookReader } from '@/components/book/BookReader';
 import type { BookPage, NavigationInfo } from '@babybook/shared';
 
@@ -9,31 +8,6 @@ interface Props {
   params: Promise<{ pageId: string }>;
 }
 
-const getChildInfo = unstable_cache(
-  async (childId: string) => {
-    const supabase = await createClient();
-    return supabase
-      .from('children')
-      .select('name, date_of_birth')
-      .eq('id', childId)
-      .single();
-  },
-  ['child-info'],
-  { revalidate: 3600, tags: ['child-info'] }
-);
-
-const getSectionName = unstable_cache(
-  async (sectionId: string) => {
-    const supabase = await createClient();
-    return supabase
-      .from('book_sections')
-      .select('name')
-      .eq('id', sectionId)
-      .single();
-  },
-  ['section-name'],
-  { revalidate: 3600, tags: ['section-name'] }
-);
 
 export default async function BookPageRoute({ params }: Props) {
   const { pageId } = await params;
@@ -119,9 +93,9 @@ export default async function BookPageRoute({ params }: Props) {
     nextQuery,
     totalQuery,
     indexQuery,
-    getChildInfo(child_id),
+    supabase.from('children').select('name, date_of_birth').eq('id', child_id).single(),
     section_id
-      ? getSectionName(section_id)
+      ? supabase.from('book_sections').select('name').eq('id', section_id).single()
       : Promise.resolve({ data: null }),
   ]);
 
